@@ -18,23 +18,11 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = async (email) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin,
-        shouldCreateUser: true,
-      }
-    })
-    return { error }
-  }
-
   const signOut = () => supabase.auth.signOut()
-
-  const isAdmin = user?.email === ADMIN_EMAIL
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL?.toLowerCase()
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signOut, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )

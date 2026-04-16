@@ -214,3 +214,32 @@ After that, every time you save a new series result in the Admin panel, every po
 - **Series in progress** — home page shows live game scores and series status from the NHL API
 - **Commissioner note** — you (admin) can post a message visible to everyone on the home page. Great for trash talk.
 - **Email notifications** — pool members get emailed when a series ends (requires Resend setup above)
+
+---
+
+## Switching to email/password login
+
+The app now uses email + password instead of magic links. One quick change needed in Supabase:
+
+1. Go to **Authentication → Sign In / Providers → Email**
+2. Make sure **Enable Email provider** is ON
+3. Turn OFF **Confirm email** (optional — makes signup instant without needing to verify)
+4. Hit Save
+
+The login page now has:
+- Sign in with email + password
+- Create account (for new members)
+- Forgot password → sends reset link to their email
+- Reset password page (auto-detected from the reset link)
+
+## Adding your app icon
+
+1. Put your icon images in the `public/` folder named `icon-192.png` and `icon-512.png`
+2. They should be square PNG images (192x192 and 512x512 pixels)
+3. Redeploy and the home screen icon will update
+
+## Installing as a home screen app
+
+**iPhone:** Open bahdsplayoff.com in Safari → Share button → Add to Home Screen → Add
+
+**Android:** Open in Chrome → three dots menu → Add to Home Screen
