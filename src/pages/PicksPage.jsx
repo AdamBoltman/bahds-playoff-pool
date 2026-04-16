@@ -1,39 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase, ROUNDS, ROUND_POINTS, PICKS_DEADLINE } from '../lib/supabase.js'
 import { useAuth } from '../hooks/useAuth.jsx'
 
 const isLocked = () => new Date() > PICKS_DEADLINE
 const NHL_LOGO = (abbrev) => `https://assets.nhle.com/logos/nhl/svg/${abbrev}_light.svg`
 
-// Bracket structure: which R1 matchups feed into which R2, R3, Final slots
-// Each entry: { id, feedsInto, slot } — slot = 't1' or 't2' of the parent matchup
-const BRACKET_FEED = {
-  e1: { feedsInto: 'e5', slot: 't1' },
-  e2: { feedsInto: 'e6', slot: 't1' },
-  e3: { feedsInto: 'e5', slot: 't2' },  // e1 winner vs e3 winner
-  e4: { feedsInto: 'e6', slot: 't2' },
-  e5: { feedsInto: 'e7', slot: 't1' },
-  e6: { feedsInto: 'e7', slot: 't2' },
-  e7: { feedsInto: 'f1', slot: 't1' },
-  w1: { feedsInto: 'w5', slot: 't1' },
-  w2: { feedsInto: 'w6', slot: 't1' },
-  w3: { feedsInto: 'w5', slot: 't2' },
-  w4: { feedsInto: 'w6', slot: 't2' },
-  w5: { feedsInto: 'w7', slot: 't1' },
-  w6: { feedsInto: 'w7', slot: 't2' },
-  w7: { feedsInto: 'f1', slot: 't2' },
-}
+// Card dimensions
+const CW = 76   // card width
+const CH = 52   // card height
+const GAP = 8   // gap between cards in a matchup
+const RGAP = 36 // gap between rounds (connector area)
+const MGAP = 20 // vertical margin between matchups in a column
 
-// For each matchup, which two source matchups feed team1 and team2
-const MATCHUP_SOURCES = {
+// Feed map: which matchup feeds into which slot of which parent
+const SOURCES = {
   e5: { t1: 'e1', t2: 'e3' },
   e6: { t1: 'e2', t2: 'e4' },
   e7: { t1: 'e5', t2: 'e6' },
   w5: { t1: 'w1', t2: 'w3' },
   w6: { t1: 'w2', t2: 'w4' },
   w7: { t1: 'w5', t2: 'w6' },
-  f1: { t1: 'e7', t2: 'w7' },
+  f1: { t1: 'w7', t2: 'e7' },
 }
+
+// West side: left→right. East side: right→left. Final in center.
+const WEST_COLS = [
+  { round: 1, ids: ['w1','w2','w3','w4'], pts: 5  },
+  { round: 2, ids: ['w5','w6'],           pts: 10 },
+  { round: 3, ids: ['w7'],               pts: 15 },
+]
+const EAST_COLS = [
+  { round: 3, ids: ['e7'],               pts: 15 },
+  { round: 2, ids: ['e5','e6'],           pts: 10 },
+  { round: 1, ids: ['e1','e2','e3','e4'], pts: 5  },
+]
 
 export default function PicksPage() {
   const { user } = useAuth()
@@ -41,19 +41,15 @@ export default function PicksPage() {
   const [overrides, setOverrides] = useState({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [popup, setPopup] = useState(null) // { matchupId, m } — current open matchup
-  const [popupTeam, setPopupTeam] = useState(null) // 't1' or 't2'
-  const [popupGames, setPopupGames] = useState(null) // 4-7
+  const [popup, setPopup] = useState(null)
+  const [popupTeam, setPopupTeam] = useState(null)
+  const [popupGames, setPopupGames] = useState(null)
   const locked = isLocked()
 
-  useEffect(() => {
-    loadPicks()
-    loadOverrides()
-  }, [])
+  useEffect(() => { loadPicks(); loadOverrides() }, [])
 
   async function loadPicks() {
-    const { data } = await supabase
-      .from('picks').select('matchup_id, team, games').eq('user_id', user.id)
+    const { data } = await supabase.from('picks').select('matchup_id, team, games').eq('user_id', user.id)
     if (data) {
       const obj = {}
       data.forEach(p => { obj[p.matchup_id] = { team: p.team, games: p.games } })
@@ -70,335 +66,460 @@ export default function PicksPage() {
     }
   }
 
-  // Merge overrides into base matchup data
+  function getBaseMatchup(id) {
+    for (const r of ROUNDS) {
+      const m = r.matchups.find(x => x.id === id)
+      if (m) return { ...m, round: r.id }
+    }
+    return null
+  }
+
   function getMatchup(id) {
-    const round = ROUNDS.find(r => r.matchups.find(m => m.id === id))
-    const base = round?.matchups.find(m => m.id === id)
+    const base = getBaseMatchup(id)
     if (!base) return null
     const ov = overrides[id]
     if (!ov) return base
-    return { ...base, t1: ov.t1 || base.t1, a1: ov.a1 || base.a1, t2: ov.t2 || base.t2, a2: ov.a2 || base.a2 }
+    return { ...base, t1: ov.t1||base.t1, a1: ov.a1||base.a1, t2: ov.t2||base.t2, a2: ov.a2||base.a2 }
   }
 
-  // Resolve what team is in a given slot of a matchup based on picks cascading up
-  function resolveTeam(matchupId, slot) {
-    const sources = MATCHUP_SOURCES[matchupId]
+  function resolveTeamAbbrev(matchupId, slot) {
+    const sources = SOURCES[matchupId]
     if (!sources) {
-      // Round 1 — team comes directly from matchup data
       const m = getMatchup(matchupId)
-      return slot === 't1' ? { abbrev: m?.a1, name: m?.t1 } : { abbrev: m?.a2, name: m?.t2 }
+      const a = slot === 't1' ? m?.a1 : m?.a2
+      return (!a || a === 'TBD' || a === '???') ? null : a
     }
-    // Higher round — team comes from the pick made in the source matchup
-    const sourceMatchupId = sources[slot]
-    const sourcePick = picks[sourceMatchupId]
-    if (!sourcePick?.team) return null // not picked yet
-    const sourceM = resolveMatchup(sourceMatchupId)
-    if (!sourceM) return null
-    return sourcePick.team === 't1'
-      ? { abbrev: sourceM.a1, name: sourceM.t1 }
-      : { abbrev: sourceM.a2, name: sourceM.t2 }
+    const srcId = sources[slot]
+    const srcPick = picks[srcId]
+    if (!srcPick?.team) return null
+    return resolveTeamAbbrev(srcId, srcPick.team)
   }
 
-  // Resolve a full matchup with cascaded team info
   function resolveMatchup(id) {
     const base = getMatchup(id)
     if (!base) return null
-    const sources = MATCHUP_SOURCES[id]
-    if (!sources) return base // R1 — use direct data
-    const t1 = resolveTeam(id, 't1')
-    const t2 = resolveTeam(id, 't2')
-    return {
-      ...base,
-      t1: t1?.name || 'TBD', a1: t1?.abbrev || null,
-      t2: t2?.name || 'TBD', a2: t2?.abbrev || null,
-    }
+    if (!SOURCES[id]) return base
+    const a1 = resolveTeamAbbrev(id, 't1')
+    const a2 = resolveTeamAbbrev(id, 't2')
+    return { ...base, a1: a1||null, t1: a1||'TBD', a2: a2||null, t2: a2||'TBD' }
   }
 
-  // Get the picked winner abbrev for a matchup
-  function getPickedAbbrev(matchupId) {
-    const pick = picks[matchupId]
+  function getPickedAbbrev(id) {
+    const pick = picks[id]
     if (!pick?.team) return null
-    const m = resolveMatchup(matchupId)
-    return pick.team === 't1' ? m?.a1 : m?.a2
+    return resolveTeamAbbrev(id, pick.team)
   }
 
-  function openPopup(matchupId) {
+  function openPopup(id) {
     if (locked) return
-    const m = resolveMatchup(matchupId)
-    if (!m) return
-    // Don't open if both teams are TBD
-    if (!m.a1 && !m.a2) return
-    const existing = picks[matchupId]
-    setPopupTeam(existing?.team || null)
-    setPopupGames(existing?.games || null)
-    setPopup({ matchupId, m })
+    const m = resolveMatchup(id)
+    if (!m || (!m.a1 && !m.a2)) return
+    const ex = picks[id]
+    setPopupTeam(ex?.team || null)
+    setPopupGames(ex?.games || null)
+    setPopup({ id, m })
   }
 
   function confirmPick() {
     if (!popupTeam || !popupGames || !popup) return
-    setPicks(p => ({ ...p, [popup.matchupId]: { team: popupTeam, games: popupGames } }))
-    setPopup(null)
-    setPopupTeam(null)
-    setPopupGames(null)
+    setPicks(p => ({ ...p, [popup.id]: { team: popupTeam, games: popupGames } }))
+    setPopup(null); setPopupTeam(null); setPopupGames(null)
   }
 
   async function submitBracket() {
     setSaving(true)
     const rows = Object.entries(picks).map(([matchup_id, pick]) => ({
-      user_id: user.id, matchup_id, team: pick.team || null, games: pick.games || null,
+      user_id: user.id, matchup_id, team: pick.team||null, games: pick.games||null,
     }))
     await supabase.from('picks').upsert(rows, { onConflict: 'user_id,matchup_id' })
-    setSaving(false)
-    setSaved(true)
+    setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 4000)
   }
 
-  // Count total picks made
-  const totalPickable = 15 // 8 + 4 + 2 + 1
+  const totalPickable = 15
   const picksMade = Object.keys(picks).filter(id => picks[id]?.team && picks[id]?.games).length
 
-  const eastR1 = ['e1', 'e2', 'e3', 'e4']
-  const westR1 = ['w1', 'w2', 'w3', 'w4']
-  const eastR2 = ['e5', 'e6']
-  const westR2 = ['w5', 'w6']
-  const eastCF = ['e7']
-  const westCF = ['w7']
-  const final = ['f1']
-
-  const round1Pts = ROUND_POINTS[1]
-  const round2Pts = ROUND_POINTS[2]
-  const round3Pts = ROUND_POINTS[3]
-  const round4Pts = ROUND_POINTS[4]
-
   return (
-    <div style={{ padding: '16px 0 48px', maxWidth: 900, margin: '0 auto' }}>
-
+    <div style={{ paddingBottom: 48 }}>
+      {/* Status banner */}
       {locked ? (
-        <div style={s.lockedBanner}>&#128274; Picks are locked — deadline passed Sunday noon PT.</div>
+        <div style={s.lockedBanner}>&#128274; Picks locked — deadline passed Sunday noon PT.</div>
       ) : (
         <div style={s.openBanner}>
-          <span>Picks open — lock by <strong>Sunday April 20, noon PT</strong></span>
-          <span style={{ fontSize: 13, color: '#5DCAA5', fontWeight: 600 }}>{picksMade}/{totalPickable} picks made</span>
+          <span>Lock by <strong>Sunday April 20, noon PT</strong></span>
+          <span style={{ color: '#5DCAA5', fontWeight: 600 }}>{picksMade}/{totalPickable} picks</span>
         </div>
       )}
 
-      {/* BRACKET */}
-      <div style={s.bracketWrap}>
-
-        {/* EAST LABEL */}
-        <div style={s.confTitle}>Eastern Conference</div>
-
-        {/* EAST BRACKET ROW */}
-        <div style={s.bracketRow}>
-          <BracketColumn ids={eastR1} resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} onTap={openPopup} label={`R1 · +${round1Pts}pts`} locked={locked} />
-          <BracketColumn ids={eastR2} resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} onTap={openPopup} label={`R2 · +${round2Pts}pts`} locked={locked} center />
-          <BracketColumn ids={eastCF} resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} onTap={openPopup} label={`CF · +${round3Pts}pts`} locked={locked} center />
-          <FinalColumn id="f1" slot="t1" resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} label={`SCF · +${round4Pts}pts`} onTap={openPopup} locked={locked} />
+      {/* Scrollable bracket */}
+      <div style={s.scrollWrap}>
+        <div style={s.bracketOuter}>
+          <Bracket
+            westCols={WEST_COLS} eastCols={EAST_COLS}
+            resolveMatchup={resolveMatchup} picks={picks}
+            getPickedAbbrev={getPickedAbbrev} onTap={openPopup} locked={locked}
+          />
         </div>
-
-        {/* FINAL DIVIDER */}
-        <div style={s.finalDivider}>
-          <div style={s.cupIcon}>🏆</div>
-          <div style={s.finalLabel}>Stanley Cup Final</div>
-        </div>
-
-        {/* WEST BRACKET ROW */}
-        <div style={s.bracketRow}>
-          <BracketColumn ids={westR1} resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} onTap={openPopup} label={`R1 · +${round1Pts}pts`} locked={locked} />
-          <BracketColumn ids={westR2} resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} onTap={openPopup} label={`R2 · +${round2Pts}pts`} locked={locked} center />
-          <BracketColumn ids={westCF} resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} onTap={openPopup} label={`CF · +${round3Pts}pts`} locked={locked} center />
-          <FinalColumn id="f1" slot="t2" resolveMatchup={resolveMatchup} picks={picks} getPickedAbbrev={getPickedAbbrev} label="" onTap={openPopup} locked={locked} />
-        </div>
-
-        {/* WEST LABEL */}
-        <div style={{ ...s.confTitle, marginTop: 4 }}>Western Conference</div>
       </div>
 
-      {/* SUBMIT */}
+      {/* Submit */}
       {!locked && (
         <div style={{ padding: '0 16px' }}>
-          <button style={{ ...s.submitBtn, opacity: picksMade === 0 ? 0.5 : 1 }} onClick={submitBracket} disabled={saving || picksMade === 0}>
-            {saving ? <span className="spinner" /> : `Submit Bracket (${picksMade}/${totalPickable} picks)`}
+          <button
+            style={{ ...s.submitBtn, opacity: picksMade === 0 ? 0.5 : 1 }}
+            onClick={submitBracket} disabled={saving || picksMade === 0}>
+            {saving ? <span className="spinner" /> : `Submit Bracket  (${picksMade}/${totalPickable})`}
           </button>
-          {saved && <div style={s.savedMsg}>&#10003; Bracket saved! You can update until Sunday noon PT.</div>}
+          {saved && <div style={s.savedMsg}>&#10003; Bracket saved! Update anytime until Sunday noon PT.</div>}
         </div>
       )}
 
-      {/* PICK POPUP */}
+      {/* Popup */}
       {popup && (
         <PickPopup
-          m={popup.m}
-          matchupId={popup.matchupId}
-          selectedTeam={popupTeam}
-          selectedGames={popupGames}
-          onTeam={setPopupTeam}
-          onGames={setPopupGames}
-          onConfirm={confirmPick}
-          onClose={() => setPopup(null)}
-          round={ROUNDS.find(r => r.matchups.find(m => m.id === popup.matchupId))?.id || 1}
+          m={popup.m} matchupId={popup.id}
+          selectedTeam={popupTeam} selectedGames={popupGames}
+          onTeam={setPopupTeam} onGames={setPopupGames}
+          onConfirm={confirmPick} onClose={() => setPopup(null)}
         />
       )}
     </div>
   )
 }
 
-// A vertical column of matchup cards for a given round
-function BracketColumn({ ids, resolveMatchup, picks, getPickedAbbrev, onTap, label, locked, center }) {
+// ─── BRACKET SVG ────────────────────────────────────────────────────────────
+
+function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, onTap, locked }) {
+  // Layout constants
+  const colW = CW + RGAP        // width of one round column including connector
+  const matchupH = CH * 2 + GAP // height of one matchup card pair
+  const r1Count = 4             // matchups in round 1
+
+  // Total height needed: 4 matchups in R1 with spacing
+  const totalH = r1Count * matchupH + (r1Count - 1) * MGAP + 60 // 60 for labels
+
+  // Column x positions (west side): R1, R2, R3
+  const wX = [0, colW, colW * 2]
+  // Column x positions (east side, mirrored): R3, R2, R1
+  const FINAL_X = colW * 3 + 20  // center gap
+  const eX = [FINAL_X + CW + RGAP + 20, FINAL_X + CW + RGAP * 2 + CW + 20, FINAL_X + CW + RGAP * 3 + CW * 2 + 20]
+
+  const totalW = eX[2] + CW + 16
+
+  // Compute vertical center of each matchup in each column
+  function getMatchupCenters(count, totalHeight) {
+    const spacing = totalHeight / count
+    return Array.from({ length: count }, (_, i) => 50 + spacing * i + spacing / 2)
+  }
+
+  const r1Centers = getMatchupCenters(4, totalH - 50)
+  const r2Centers = getMatchupCenters(2, totalH - 50)
+  const r3Centers = getMatchupCenters(1, totalH - 50)
+
+  function getCenters(round) {
+    if (round === 1) return r1Centers
+    if (round === 2) return r2Centers
+    return r3Centers
+  }
+
+  const LABEL_Y = 18
+  const connColor = 'rgba(255,255,255,0.18)'
+
   return (
-    <div style={{ ...s.column, alignItems: center ? 'center' : 'flex-start' }}>
-      <div style={s.roundLabel}>{label}</div>
-      {ids.map(id => (
-        <MatchupCard key={id} id={id} resolveMatchup={resolveMatchup} picks={picks}
-          getPickedAbbrev={getPickedAbbrev} onTap={onTap} locked={locked} />
+    <svg width={totalW} height={totalH + 20} style={{ display: 'block' }}>
+      <defs>
+        <style>{`
+          .card-bg { fill: #1a2f4a; rx: 7; }
+          .card-picked { fill: #0d1f35; }
+          .team-abbr { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; fill: #fff; }
+          .team-abbr-dim { fill: rgba(255,255,255,0.3); }
+          .team-abbr-winner { fill: #FFD700; }
+          .round-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; fill: #6B8FAD; letter-spacing: 1px; }
+          .conf-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; fill: #C8102E; letter-spacing: 2px; }
+          .games-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 600; fill: #85B7EB; }
+          .final-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; fill: #FFD700; letter-spacing: 2px; }
+          .tbd-lbl { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; fill: rgba(255,255,255,0.2); }
+          .tap-hint { font-family: 'Barlow', sans-serif; font-size: 8px; fill: rgba(255,255,255,0.25); }
+        `}</style>
+      </defs>
+
+      {/* WEST LABEL */}
+      <text x={wX[0] + CW/2} y={LABEL_Y} textAnchor="middle" className="conf-lbl">WEST</text>
+
+      {/* EAST LABEL */}
+      <text x={eX[2] + CW/2} y={LABEL_Y} textAnchor="middle" className="conf-lbl">EAST</text>
+
+      {/* FINAL LABEL */}
+      <text x={FINAL_X + CW/2} y={LABEL_Y} textAnchor="middle" className="final-lbl">FINAL</text>
+
+      {/* ROUND LABELS — West */}
+      {westCols.map((col, ci) => (
+        <text key={`wl${ci}`} x={wX[ci] + CW/2} y={34} textAnchor="middle" className="round-lbl">
+          {`R${col.round} +${col.pts}pts`}
+        </text>
       ))}
-    </div>
+
+      {/* ROUND LABELS — East */}
+      {eastCols.map((col, ci) => (
+        <text key={`el${ci}`} x={eX[ci] + CW/2} y={34} textAnchor="middle" className="round-lbl">
+          {`R${col.round} +${col.pts}pts`}
+        </text>
+      ))}
+
+      {/* ── WEST CONNECTOR LINES ── */}
+      {/* R1→R2 */}
+      {[0,1,2,3].map(i => {
+        const srcCy = r1Centers[i]
+        const destIdx = Math.floor(i / 2)
+        const destCy = r2Centers[destIdx]
+        const srcX = wX[0] + CW
+        const destX = wX[1]
+        const midX = srcX + RGAP / 2
+        return (
+          <g key={`wc1_${i}`}>
+            <line x1={srcX} y1={srcCy} x2={midX} y2={srcCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={srcCy} x2={midX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+          </g>
+        )
+      })}
+      {/* R2→R3 */}
+      {[0,1].map(i => {
+        const srcCy = r2Centers[i]
+        const destCy = r3Centers[0]
+        const srcX = wX[1] + CW
+        const destX = wX[2]
+        const midX = srcX + RGAP / 2
+        return (
+          <g key={`wc2_${i}`}>
+            <line x1={srcX} y1={srcCy} x2={midX} y2={srcCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={srcCy} x2={midX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+          </g>
+        )
+      })}
+      {/* R3→Final */}
+      <line x1={wX[2]+CW} y1={r3Centers[0]} x2={FINAL_X} y2={r3Centers[0]} stroke={connColor} strokeWidth="1.5" />
+
+      {/* ── EAST CONNECTOR LINES ── */}
+      {/* R1→R2 (east R1 is eX[2], R2 is eX[1]) */}
+      {[0,1,2,3].map(i => {
+        const srcCy = r1Centers[i]
+        const destIdx = Math.floor(i / 2)
+        const destCy = r2Centers[destIdx]
+        const srcX = eX[2]
+        const destX = eX[1] + CW
+        const midX = srcX - RGAP / 2
+        return (
+          <g key={`ec1_${i}`}>
+            <line x1={srcX} y1={srcCy} x2={midX} y2={srcCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={srcCy} x2={midX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+          </g>
+        )
+      })}
+      {/* R2→R3 */}
+      {[0,1].map(i => {
+        const srcCy = r2Centers[i]
+        const destCy = r3Centers[0]
+        const srcX = eX[1]
+        const destX = eX[0] + CW
+        const midX = srcX - RGAP / 2
+        return (
+          <g key={`ec2_${i}`}>
+            <line x1={srcX} y1={srcCy} x2={midX} y2={srcCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={srcCy} x2={midX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+            <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={connColor} strokeWidth="1.5" />
+          </g>
+        )
+      })}
+      {/* R3→Final */}
+      <line x1={eX[0]} y1={r3Centers[0]} x2={FINAL_X+CW} y2={r3Centers[0]} stroke={connColor} strokeWidth="1.5" />
+
+      {/* ── WEST MATCHUP CARDS ── */}
+      {westCols.map((col, ci) =>
+        col.ids.map((id, mi) => {
+          const cy = getCenters(col.round)[mi]
+          return (
+            <MatchupCardSVG key={id} id={id} x={wX[ci]} cy={cy}
+              resolveMatchup={resolveMatchup} picks={picks}
+              getPickedAbbrev={getPickedAbbrev} onTap={onTap} locked={locked} />
+          )
+        })
+      )}
+
+      {/* ── EAST MATCHUP CARDS ── */}
+      {eastCols.map((col, ci) =>
+        col.ids.map((id, mi) => {
+          const cy = getCenters(col.round)[mi]
+          return (
+            <MatchupCardSVG key={id} id={id} x={eX[ci]} cy={cy}
+              resolveMatchup={resolveMatchup} picks={picks}
+              getPickedAbbrev={getPickedAbbrev} onTap={onTap} locked={locked} />
+          )
+        })
+      )}
+
+      {/* ── FINAL CARD ── */}
+      <FinalCardSVG x={FINAL_X} cy={r3Centers[0]}
+        resolveMatchup={resolveMatchup} picks={picks}
+        getPickedAbbrev={getPickedAbbrev} onTap={onTap} locked={locked} />
+    </svg>
   )
 }
 
-// Special column just for the Final — shows one slot (East winner or West winner)
-function FinalColumn({ id, slot, resolveMatchup, picks, getPickedAbbrev, onTap, label, locked }) {
-  const m = resolveMatchup(id)
-  const pick = picks[id]
-  const pickedAbbrev = getPickedAbbrev(id)
-  const abbrev = slot === 't1' ? m?.a1 : m?.a2
-  const isChampion = pickedAbbrev && pickedAbbrev === abbrev
-  const hasPick = !!abbrev
-
-  return (
-    <div style={{ ...s.column, alignItems: 'center' }}>
-      {label && <div style={s.roundLabel}>{label}</div>}
-      <div style={{ ...s.finalSlot, borderColor: isChampion ? '#FFD700' : 'rgba(255,255,255,0.15)', background: isChampion ? 'rgba(255,215,0,0.1)' : '#051F3E' }}
-        onClick={() => !locked && onTap(id)}>
-        {hasPick ? (
-          <>
-            <img src={`https://assets.nhle.com/logos/nhl/svg/${abbrev}_light.svg`} style={s.finalLogo} alt={abbrev}
-              onError={e => { e.target.style.display = 'none' }} />
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, fontWeight: 700, color: isChampion ? '#FFD700' : '#A0B4CC' }}>{abbrev}</div>
-            {isChampion && pick?.games && <div style={{ fontSize: 10, color: '#FFD700', marginTop: 2 }}>in {pick.games}</div>}
-          </>
-        ) : (
-          <div style={s.tbdSlot}>?</div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Individual matchup card — shows two teams, tap to pick
-function MatchupCard({ id, resolveMatchup, picks, getPickedAbbrev, onTap, locked }) {
+// SVG matchup card — two team slots stacked
+function MatchupCardSVG({ id, x, cy, resolveMatchup, picks, getPickedAbbrev, onTap, locked }) {
   const m = resolveMatchup(id)
   if (!m) return null
   const pick = picks[id]
   const pickedAbbrev = getPickedAbbrev(id)
-  const hasPick = !!pickedAbbrev
+  const matchupH = CH * 2 + GAP
+  const y = cy - matchupH / 2
+
   const bothTBD = !m.a1 && !m.a2
+  const canTap = !locked && !bothTBD
 
   return (
-    <div style={{ ...s.matchupCard, cursor: locked || bothTBD ? 'default' : 'pointer' }}
-      onClick={() => !locked && !bothTBD && onTap(id)}>
-
-      <TeamSlot abbrev={m.a1} isPicked={pickedAbbrev === m.a1} isLoser={hasPick && pickedAbbrev !== m.a1} />
-      <div style={s.vsLine}>
-        {hasPick && pick?.games ? (
-          <div style={s.gamesChip}>in {pick.games}</div>
-        ) : (
-          <div style={s.vsDot} />
-        )}
-      </div>
-      <TeamSlot abbrev={m.a2} isPicked={pickedAbbrev === m.a2} isLoser={hasPick && pickedAbbrev !== m.a2} />
-
-      {!hasPick && !bothTBD && !locked && (
-        <div style={s.tapHint}>tap to pick</div>
+    <g style={{ cursor: canTap ? 'pointer' : 'default' }} onClick={() => canTap && onTap(id)}>
+      {/* Team 1 card */}
+      <TeamCardSVG x={x} y={y} abbrev={m.a1} isPicked={pickedAbbrev === m.a1} isLoser={!!pickedAbbrev && pickedAbbrev !== m.a1} games={pickedAbbrev === m.a1 ? pick?.games : null} />
+      {/* Team 2 card */}
+      <TeamCardSVG x={x} y={y + CH + GAP} abbrev={m.a2} isPicked={pickedAbbrev === m.a2} isLoser={!!pickedAbbrev && pickedAbbrev !== m.a2} games={pickedAbbrev === m.a2 ? pick?.games : null} />
+      {/* Tap hint if no pick */}
+      {!pickedAbbrev && canTap && (
+        <text x={x + CW/2} y={y + matchupH + 10} textAnchor="middle" className="tap-hint">tap to pick</text>
       )}
-    </div>
+    </g>
   )
 }
 
-function TeamSlot({ abbrev, isPicked, isLoser }) {
-  if (!abbrev || abbrev === 'TBD' || abbrev === '???' || abbrev === 'TBD') {
-    return <div style={s.tbdLogoSlot}><div style={s.tbdCircle}>?</div></div>
-  }
+function TeamCardSVG({ x, y, abbrev, isPicked, isLoser, games }) {
+  const isTBD = !abbrev || abbrev === 'TBD' || abbrev === '???'
+  const opacity = isLoser ? 0.3 : 1
+
   return (
-    <div style={{ ...s.logoSlot, opacity: isLoser ? 0.3 : 1 }}>
-      <div style={{ ...s.logoWrap, background: isPicked ? 'rgba(200,16,46,0.15)' : 'transparent', borderColor: isPicked ? '#C8102E' : 'transparent' }}>
-        <img src={`https://assets.nhle.com/logos/nhl/svg/${abbrev}_light.svg`}
-          style={s.logo} alt={abbrev}
-          onError={e => { e.target.replaceWith(Object.assign(document.createElement('div'), { textContent: abbrev, style: 'font-size:10px;color:#A0B4CC;font-weight:700;font-family:Barlow Condensed,sans-serif;' })) }}
-        />
-      </div>
-      {isPicked && <div style={s.pickedDot} />}
-    </div>
+    <g opacity={opacity}>
+      {/* Card background */}
+      <rect x={x} y={y} width={CW} height={CH} rx="7"
+        fill={isPicked ? '#0d2d1a' : '#1a2f4a'}
+        stroke={isPicked ? '#1D9E75' : 'rgba(255,255,255,0.12)'}
+        strokeWidth={isPicked ? 2 : 1} />
+
+      {isTBD ? (
+        <text x={x + CW/2} y={y + CH/2 + 5} textAnchor="middle" className="tbd-lbl">?</text>
+      ) : (
+        <>
+          {/* Team logo via foreignObject for img tag */}
+          <foreignObject x={x + 4} y={y + 4} width={CW - 8} height={CH - (games ? 18 : 8)}>
+            <div xmlns="http://www.w3.org/1999/xhtml"
+              style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src={NHL_LOGO(abbrev)} alt={abbrev}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: isLoser ? 'grayscale(100%)' : 'none' }}
+                onError={(e) => {
+                  e.target.style.display = 'none'
+                  e.target.parentNode.innerHTML = `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:white;">${abbrev}</span>`
+                }}
+              />
+            </div>
+          </foreignObject>
+          {/* Games badge */}
+          {games && (
+            <>
+              <rect x={x + 4} y={y + CH - 16} width={CW - 8} height={13} rx="4"
+                fill="rgba(55,138,221,0.25)" stroke="rgba(55,138,221,0.4)" strokeWidth="1" />
+              <text x={x + CW/2} y={y + CH - 6} textAnchor="middle" className="games-lbl">in {games}</text>
+            </>
+          )}
+          {/* Winner glow dot */}
+          {isPicked && (
+            <circle cx={x + CW - 8} cy={y + 8} r={4} fill="#1D9E75" />
+          )}
+        </>
+      )}
+    </g>
   )
 }
 
-// Popup modal for picking winner + games
-function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames, onConfirm, onClose, round }) {
+// Final card — shows West winner (top) vs East winner (bottom)
+function FinalCardSVG({ x, cy, resolveMatchup, picks, getPickedAbbrev, onTap, locked }) {
+  const m = resolveMatchup('f1')
+  if (!m) return null
+  const matchupH = CH * 2 + GAP + 24
+  const y = cy - matchupH / 2
+  const pickedAbbrev = getPickedAbbrev('f1')
+  const pick = picks['f1']
+  const bothTBD = !m.a1 && !m.a2
+  const canTap = !locked && !bothTBD
+
+  return (
+    <g style={{ cursor: canTap ? 'pointer' : 'default' }} onClick={() => canTap && onTap('f1')}>
+      <TeamCardSVG x={x} y={y + 20} abbrev={m.a1} isPicked={pickedAbbrev === m.a1} isLoser={!!pickedAbbrev && pickedAbbrev !== m.a1} games={pickedAbbrev === m.a1 ? pick?.games : null} />
+      <text x={x + CW/2} y={y + 20 + CH + GAP/2 + 4} textAnchor="middle" style={{ fontSize: 10, fill: '#6B8FAD', fontFamily: 'Barlow Condensed' }}>vs</text>
+      <TeamCardSVG x={x} y={y + 20 + CH + GAP + 12} abbrev={m.a2} isPicked={pickedAbbrev === m.a2} isLoser={!!pickedAbbrev && pickedAbbrev !== m.a2} games={pickedAbbrev === m.a2 ? pick?.games : null} />
+    </g>
+  )
+}
+
+// ─── POPUP ───────────────────────────────────────────────────────────────────
+
+function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames, onConfirm, onClose }) {
+  const round = (() => { for (const r of ROUNDS) { if (r.matchups.find(x => x.id === matchupId)) return r.id } return 1 })()
   const pts = ROUND_POINTS[round] || 5
   const canConfirm = selectedTeam && selectedGames
-  const bothTBD = !m.a1 && !m.a2
 
   return (
     <div style={s.overlay} onClick={onClose}>
       <div style={s.modal} onClick={e => e.stopPropagation()}>
-        <div style={s.modalHeader}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700 }}>
-            Round {round} Pick
+        <div style={s.modalTop}>
+          <div>
+            <div style={s.modalTitle}>Round {round} Pick</div>
+            <div style={s.modalSub}>+{pts} pts per correct pick</div>
           </div>
-          <div style={{ fontSize: 12, color: '#6B8FAD' }}>+{pts} pts each</div>
           <button onClick={onClose} style={s.closeBtn}>✕</button>
         </div>
 
-        {/* Team picker */}
-        <div style={s.modalSection}>
-          <div style={s.modalSectionLabel}>Who wins this series?</div>
-          <div style={s.teamPicker}>
-            {[{ slot: 't1', abbrev: m.a1, name: m.t1 }, { slot: 't2', abbrev: m.a2, name: m.t2 }].map(({ slot, abbrev, name }) => {
-              const isTBD = !abbrev || abbrev === 'TBD' || abbrev === '???'
-              const isSelected = selectedTeam === slot
-              return (
-                <button key={slot}
-                  style={{ ...s.teamPickBtn, borderColor: isSelected ? '#C8102E' : 'rgba(255,255,255,0.15)', background: isSelected ? 'rgba(200,16,46,0.15)' : 'transparent', opacity: isTBD ? 0.4 : 1 }}
-                  onClick={() => !isTBD && onTeam(slot)}
-                  disabled={isTBD}>
-                  {!isTBD ? (
-                    <img src={`https://assets.nhle.com/logos/nhl/svg/${abbrev}_light.svg`}
-                      style={s.popupLogo} alt={abbrev}
-                      onError={e => { e.target.style.display = 'none' }} />
-                  ) : (
-                    <div style={s.tbdPopupCircle}>?</div>
-                  )}
-                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 14, fontWeight: 700, marginTop: 6, color: isSelected ? 'white' : '#A0B4CC' }}>
-                    {isTBD ? 'TBD' : abbrev}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#6B8FAD', marginTop: 2, lineHeight: 1.3 }}>
-                    {isTBD ? '—' : name?.split(' ').pop()}
-                  </div>
-                  {isSelected && <div style={s.selectedCheck}>✓</div>}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Games picker */}
-        <div style={s.modalSection}>
-          <div style={s.modalSectionLabel}>How many games?</div>
-          <div style={s.gamesPicker}>
-            {[4, 5, 6, 7].map(g => (
-              <button key={g}
-                style={{ ...s.gamesBtn, borderColor: selectedGames === g ? '#378ADD' : 'rgba(255,255,255,0.15)', background: selectedGames === g ? 'rgba(55,138,221,0.2)' : 'transparent', color: selectedGames === g ? '#85B7EB' : '#A0B4CC' }}
-                onClick={() => onGames(g)}>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 26, fontWeight: 700 }}>{g}</div>
-                <div style={{ fontSize: 10, marginTop: 2 }}>games</div>
+        <div style={s.sectionLabel}>Who wins?</div>
+        <div style={s.teamGrid}>
+          {[{slot:'t1', abbrev:m.a1, name:m.t1}, {slot:'t2', abbrev:m.a2, name:m.t2}].map(({slot, abbrev, name}) => {
+            const isTBD = !abbrev || abbrev === 'TBD' || abbrev === '???'
+            const sel = selectedTeam === slot
+            return (
+              <button key={slot}
+                style={{ ...s.teamBtn, borderColor: sel ? '#1D9E75' : 'rgba(255,255,255,0.12)', background: sel ? 'rgba(29,158,117,0.15)' : '#0d1f35', opacity: isTBD ? 0.35 : 1 }}
+                onClick={() => !isTBD && onTeam(slot)} disabled={isTBD}>
+                {!isTBD ? (
+                  <img src={NHL_LOGO(abbrev)} alt={abbrev} style={s.popupLogo}
+                    onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block' }} />
+                ) : (
+                  <div style={s.tbdCircle}>?</div>
+                )}
+                <div style={{ display: 'none', fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'white' }}>{abbrev}</div>
+                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 700, marginTop: 8, color: sel ? 'white' : '#A0B4CC' }}>
+                  {isTBD ? 'TBD' : abbrev}
+                </div>
+                <div style={{ fontSize: 11, color: '#6B8FAD', marginTop: 2 }}>{isTBD ? '—' : name?.split(' ').pop()}</div>
+                {sel && <div style={s.selCheck}>✓</div>}
               </button>
-            ))}
-          </div>
+            )
+          })}
         </div>
 
-        <button style={{ ...s.confirmBtn, opacity: canConfirm ? 1 : 0.4 }}
-          onClick={canConfirm ? onConfirm : undefined}
-          disabled={!canConfirm}>
-          {canConfirm ? 'Confirm Pick' : 'Pick a team and series length'}
+        <div style={{ ...s.sectionLabel, marginTop: 20 }}>Series length?</div>
+        <div style={s.gamesGrid}>
+          {[4,5,6,7].map(g => (
+            <button key={g}
+              style={{ ...s.gamesBtn, borderColor: selectedGames===g ? '#378ADD' : 'rgba(255,255,255,0.12)', background: selectedGames===g ? 'rgba(55,138,221,0.2)' : '#0d1f35', color: selectedGames===g ? '#85B7EB' : '#6B8FAD' }}
+              onClick={() => onGames(g)}>
+              <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 700, display: 'block' }}>{g}</span>
+              <span style={{ fontSize: 10 }}>games</span>
+            </button>
+          ))}
+        </div>
+
+        <button style={{ ...s.confirmBtn, opacity: canConfirm ? 1 : 0.4, marginTop: 20 }}
+          onClick={canConfirm ? onConfirm : undefined} disabled={!canConfirm}>
+          {canConfirm ? '✓  Confirm Pick' : 'Select a team and series length'}
         </button>
       </div>
     </div>
@@ -406,67 +527,25 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
 }
 
 const s = {
-  lockedBanner: { margin: '0 16px 16px', background: 'rgba(200,16,46,0.1)', border: '1px solid rgba(200,16,46,0.25)', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#FFB3C0', display: 'flex', alignItems: 'center', gap: 10 },
-  openBanner: { margin: '0 16px 16px', background: 'rgba(29,158,117,0.1)', border: '1px solid rgba(29,158,117,0.25)', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#5DCAA5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-
-  bracketWrap: { padding: '0 8px', overflowX: 'auto' },
-  confTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 12, fontWeight: 700, color: '#C8102E', letterSpacing: 2, textTransform: 'uppercase', padding: '8px 8px 4px', },
-  bracketRow: { display: 'flex', gap: 4, alignItems: 'flex-start', padding: '4px 0' },
-
-  column: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 },
-  roundLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 10, fontWeight: 600, color: '#6B8FAD', letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center', marginBottom: 2, whiteSpace: 'nowrap' },
-
-  matchupCard: {
-    background: '#051F3E',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 10,
-    padding: '8px 6px',
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    gap: 4,
-    transition: 'border-color 0.15s',
-    minWidth: 64,
-  },
-
-  logoSlot: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, position: 'relative' },
-  logoWrap: { width: 40, height: 40, borderRadius: 8, border: '2px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', padding: 4 },
-  logo: { width: 32, height: 32, objectFit: 'contain' },
-  pickedDot: { width: 5, height: 5, background: '#C8102E', borderRadius: '50%' },
-
-  tbdLogoSlot: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  tbdCircle: { width: 40, height: 40, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#6B8FAD' },
-
-  vsLine: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
-  vsDot: { width: 4, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: '50%' },
-  gamesChip: { background: 'rgba(55,138,221,0.2)', border: '1px solid rgba(55,138,221,0.3)', borderRadius: 10, padding: '2px 6px', fontSize: 10, color: '#85B7EB', fontWeight: 600, whiteSpace: 'nowrap' },
-  tapHint: { fontSize: 9, color: '#6B8FAD', marginTop: 2, letterSpacing: 0.5 },
-
-  finalSlot: { width: 56, height: 90, borderRadius: 10, border: '2px solid', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 6, cursor: 'pointer', transition: 'all 0.2s' },
-  finalLogo: { width: 36, height: 36, objectFit: 'contain' },
-  tbdSlot: { fontSize: 20, color: '#6B8FAD' },
-
-  finalDivider: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px 0 8px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '4px 8px' },
-  cupIcon: { fontSize: 20 },
-  finalLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, fontWeight: 700, color: '#FFD700', letterSpacing: 2, textTransform: 'uppercase' },
-
-  submitBtn: { width: '100%', marginTop: 20, padding: '14px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 10, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  lockedBanner: { margin: '0 16px 12px', background: 'rgba(200,16,46,0.1)', border: '1px solid rgba(200,16,46,0.25)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#FFB3C0' },
+  openBanner: { margin: '0 16px 12px', background: 'rgba(29,158,117,0.08)', border: '1px solid rgba(29,158,117,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#5DCAA5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  scrollWrap: { overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 12px 12px' },
+  bracketOuter: { display: 'inline-block', minWidth: '100%' },
+  submitBtn: { width: '100%', marginTop: 16, padding: '14px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 10, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
   savedMsg: { textAlign: 'center', color: '#1D9E75', fontSize: 13, marginTop: 10 },
-
-  // Popup styles
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(2,15,33,0.92)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 400, padding: 0 },
-  modal: { background: '#051F3E', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '20px 20px 0 0', padding: '20px 20px 36px', width: '100%', maxWidth: 480 },
-  modalHeader: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 },
-  closeBtn: { marginLeft: 'auto', background: 'transparent', border: 'none', color: '#A0B4CC', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4 },
-  modalSection: { marginBottom: 20 },
-  modalSectionLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 11, fontWeight: 600, color: '#6B8FAD', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
-
-  teamPicker: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-  teamPickBtn: { padding: '14px 8px', borderRadius: 12, border: '2px solid', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.15s', position: 'relative' },
-  popupLogo: { width: 56, height: 56, objectFit: 'contain' },
-  tbdPopupCircle: { width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#6B8FAD' },
-  selectedCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, background: '#C8102E', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' },
-
-  gamesPicker: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 },
-  gamesBtn: { padding: '12px 6px', borderRadius: 10, border: '1px solid', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.15s' },
-
-  confirmBtn: { width: '100%', padding: '14px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 10, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', transition: 'opacity 0.2s' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(2,15,33,0.92)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 400 },
+  modal: { background: '#0d1f35', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px 20px 0 0', padding: '20px 20px 36px', width: '100%', maxWidth: 500 },
+  modalTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  modalTitle: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 700 },
+  modalSub: { fontSize: 12, color: '#6B8FAD', marginTop: 2 },
+  closeBtn: { background: 'transparent', border: 'none', color: '#A0B4CC', fontSize: 22, cursor: 'pointer', padding: 4 },
+  sectionLabel: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 600, color: '#6B8FAD', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
+  teamGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
+  teamBtn: { padding: '16px 8px', borderRadius: 12, border: '2px solid', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.15s', position: 'relative' },
+  popupLogo: { width: 64, height: 64, objectFit: 'contain' },
+  tbdCircle: { width: 64, height: 64, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#6B8FAD' },
+  selCheck: { position: 'absolute', top: 8, right: 8, width: 20, height: 20, background: '#1D9E75', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'white' },
+  gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 },
+  gamesBtn: { padding: '12px 6px', borderRadius: 10, border: '1px solid', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', transition: 'all 0.15s' },
+  confirmBtn: { width: '100%', padding: '14px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: 10, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer' },
 }
