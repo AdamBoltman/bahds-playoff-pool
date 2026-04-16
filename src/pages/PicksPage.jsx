@@ -8,6 +8,7 @@ export default function PicksPage() {
   const { user } = useAuth()
   const [picks, setPicks] = useState({})
   const [results, setResults] = useState({})
+  const [overrides, setOverrides] = useState({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [activeRound, setActiveRound] = useState(1)
@@ -16,7 +17,27 @@ export default function PicksPage() {
   useEffect(() => {
     loadPicks()
     loadResults()
+    loadOverrides()
   }, [])
+
+  async function loadOverrides() {
+    const { data } = await supabase.from('matchup_overrides').select('*')
+    if (data) {
+      const obj = {}
+      data.forEach(r => { obj[r.matchup_id] = r })
+      setOverrides(obj)
+    }
+  }
+
+  // Merge overrides into ROUNDS so picks page always shows correct teams
+  const LIVE_ROUNDS = ROUNDS.map(round => ({
+    ...round,
+    matchups: round.matchups.map(m => {
+      const ov = overrides[m.id]
+      if (!ov) return m
+      return { ...m, t1: ov.t1 || m.t1, a1: ov.a1 || m.a1, t2: ov.t2 || m.t2, a2: ov.a2 || m.a2 }
+    })
+  }))
 
   async function loadPicks() {
     const { data } = await supabase
@@ -64,11 +85,11 @@ export default function PicksPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  // Determine which rounds are unlocked
-  // Round 1 always open; subsequent rounds open when admin unlocks them via results
+  // Before deadline: ALL rounds open (pick full bracket upfront)
+  // After deadline: rounds unlock as admin enters results
   const unlockedRounds = ROUNDS.map(r => {
+    if (!locked) return true
     if (r.id === 1) return true
-    // Round N unlocks if all round N-1 results are entered
     const prevRound = ROUNDS.find(x => x.id === r.id - 1)
     return prevRound?.matchups.every(m => results[m.id]) ?? false
   })
@@ -105,7 +126,7 @@ export default function PicksPage() {
         ))}
       </div>
 
-      {ROUNDS.map((round, ri) => {
+      {LIVE_ROUNDS.map((round, ri) => {
         if (round.id !== activeRound) return null
         const unlocked = unlockedRounds[ri]
         const pts = ROUND_POINTS[round.id]

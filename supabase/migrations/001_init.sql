@@ -97,3 +97,14 @@ create table if not exists public.commissioner_note (
 alter table public.commissioner_note enable row level security;
 create policy "note_select" on public.commissioner_note for select using (true);
 create policy "note_all"    on public.commissioner_note for all   using (true);
+
+-- 6. MATCHUP OVERRIDES — admin can update team names/abbrevs without code changes
+create table if not exists public.matchup_overrides (
+  matchup_id text primary key,
+  t1 text, a1 text,
+  t2 text, a2 text,
+  updated_at timestamptz default now()
+);
+alter table public.matchup_overrides enable row level security;
+create policy "overrides_select" on public.matchup_overrides for select using (true);
+create policy "overrides_all"    on public.matchup_overrides for all   using (true);
