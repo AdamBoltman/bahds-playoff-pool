@@ -2,36 +2,39 @@
 const NHL_BASE = 'https://api-web.nhle.com/v1'
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl'
 
-export async function fetchNHLStandings() {
-  try {
-    const res = await fetch(`${NHL_BASE}/standings/now`)
-    const data = await res.json()
-    return data.standings || []
-  } catch { return [] }
-}
+// Playoffs start April 18 2026
+const PLAYOFFS_START = new Date('2026-04-18T00:00:00Z')
+const isPlayoffs = () => new Date() >= PLAYOFFS_START
+const seasonType = () => isPlayoffs() ? 3 : 2 // 2 = regular season, 3 = playoffs
+const seasonId = '20252026'
 
-export async function fetchPlayoffStats() {
+export async function fetchSkaterLeaders() {
   try {
-    // Skater leaders
-    const [goalsRes, pointsRes] = await Promise.all([
-      fetch(`${NHL_BASE}/skater-stats-leaders/20252026/3?categories=goals&limit=5`),
-      fetch(`${NHL_BASE}/skater-stats-leaders/20252026/3?categories=points&limit=5`),
+    const type = seasonType()
+    const [goalsRes, pointsRes, assistsRes] = await Promise.all([
+      fetch(`${NHL_BASE}/skater-stats-leaders/${seasonId}/${type}?categories=goals&limit=1`),
+      fetch(`${NHL_BASE}/skater-stats-leaders/${seasonId}/${type}?categories=points&limit=1`),
+      fetch(`${NHL_BASE}/skater-stats-leaders/${seasonId}/${type}?categories=assists&limit=1`),
     ])
-    const goals = await goalsRes.json()
-    const points = await pointsRes.json()
+    const [goals, points, assists] = await Promise.all([
+      goalsRes.json(), pointsRes.json(), assistsRes.json()
+    ])
     return {
-      goals: goals.goals?.slice(0, 3) || [],
-      points: points.points?.slice(0, 3) || [],
+      goals:   goals.goals?.[0]   || null,
+      points:  points.points?.[0] || null,
+      assists: assists.assists?.[0] || null,
+      isPlayoffs: isPlayoffs(),
     }
-  } catch { return { goals: [], points: [] } }
+  } catch { return { goals: null, points: null, assists: null, isPlayoffs: false } }
 }
 
-export async function fetchGoalieStats() {
+export async function fetchGoalieLeader() {
   try {
-    const res = await fetch(`${NHL_BASE}/goalie-stats-leaders/20252026/3?categories=gaa&limit=3`)
+    const type = seasonType()
+    const res = await fetch(`${NHL_BASE}/goalie-stats-leaders/${seasonId}/${type}?categories=gaa&limit=1`)
     const data = await res.json()
-    return data.gaa?.slice(0, 3) || []
-  } catch { return [] }
+    return data.gaa?.[0] || null
+  } catch { return null }
 }
 
 export async function fetchESPNNews() {

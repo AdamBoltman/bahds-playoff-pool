@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { fetchPlayoffStats, fetchGoalieStats, fetchESPNNews, fetchNHLScores, timeAgo } from '../lib/nhl.js'
+import { fetchSkaterLeaders, fetchGoalieLeader, fetchESPNNews, fetchNHLScores, timeAgo } from '../lib/nhl.js'
 import { useAuth } from '../hooks/useAuth.jsx'
 
 export default function HomePage() {
@@ -9,8 +9,8 @@ export default function HomePage() {
   const [myRank, setMyRank] = useState(null)
   const [myPts, setMyPts] = useState(null)
   const [playerCount, setPlayerCount] = useState(null)
-  const [stats, setStats] = useState(null)
-  const [goalies, setGoalies] = useState([])
+  const [leaders, setLeaders] = useState(null)
+  const [goalie, setGoalie] = useState(null)
   const [news, setNews] = useState([])
   const [newsLoading, setNewsLoading] = useState(true)
   const [liveGames, setLiveGames] = useState([])
@@ -21,7 +21,7 @@ export default function HomePage() {
 
   useEffect(() => {
     loadLeaderboard()
-    loadStats()
+    loadLeaders()
     loadNews()
     loadLiveGames()
     loadCommNote()
@@ -39,10 +39,10 @@ export default function HomePage() {
     if (idx >= 0) { setMyRank(idx + 1); setMyPts(data[idx].total) }
   }
 
-  async function loadStats() {
-    const [s, g] = await Promise.all([fetchPlayoffStats(), fetchGoalieStats()])
-    setStats(s)
-    setGoalies(g)
+  async function loadLeaders() {
+    const [s, g] = await Promise.all([fetchSkaterLeaders(), fetchGoalieLeader()])
+    setLeaders(s)
+    setGoalie(g)
   }
 
   async function loadNews() {
@@ -162,11 +162,14 @@ export default function HomePage() {
         </>
       )}
 
-      <div className="section-label" style={{ marginTop: 24 }}>Playoff leaders</div>
+      <div className="section-label" style={{ marginTop: 24 }}>
+        {leaders?.isPlayoffs ? 'Playoff leaders' : 'Regular season leaders'}
+      </div>
       <div style={s.statGrid}>
-        {stats?.goals?.[0] && <StatCard label="Goals leader" value={stats.goals[0].lastName || '—'} sub={`${stats.goals[0].teamAbbrevs || ''} · ${stats.goals[0].value || ''} G`} />}
-        {stats?.points?.[0] && <StatCard label="Points leader" value={stats.points[0].lastName || '—'} sub={`${stats.points[0].teamAbbrevs || ''} · ${stats.points[0].value || ''} PTS`} />}
-        {goalies?.[0] && <StatCard label="GAA leader" value={goalies[0].lastName || '—'} sub={`${goalies[0].teamAbbrevs || ''} · ${Number(goalies[0].value || 0).toFixed(2)} GAA`} />}
+        {leaders?.goals && <StatCard label="Goals leader" value={leaders.goals.lastName || '—'} sub={`${leaders.goals.teamAbbrevs || ''} · ${leaders.goals.value || ''} G`} />}
+        {leaders?.points && <StatCard label="Points leader" value={leaders.points.lastName || '—'} sub={`${leaders.points.teamAbbrevs || ''} · ${leaders.points.value || ''} PTS`} />}
+        {leaders?.assists && <StatCard label="Assists leader" value={leaders.assists.lastName || '—'} sub={`${leaders.assists.teamAbbrevs || ''} · ${leaders.assists.value || ''} A`} />}
+        {goalie && <StatCard label="GAA leader" value={goalie.lastName || '—'} sub={`${goalie.teamAbbrevs || ''} · ${Number(goalie.value || 0).toFixed(2)} GAA`} />}
       </div>
 
       <div className="section-label" style={{ marginTop: 24 }}>Latest news</div>
@@ -215,7 +218,7 @@ const s = {
   heroRank: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 700 },
   heroPts: { fontSize: 13, color: '#A0B4CC', marginTop: 4 },
   gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 8 },
-  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 10 },
+  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 },
   newsItem: { background: '#051F3E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', textDecoration: 'none', color: 'inherit' },
   newsDot: { width: 8, height: 8, background: '#C8102E', borderRadius: '50%', marginTop: 5, flexShrink: 0 },
   newsSrc: { fontSize: 10, color: '#C8102E', fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
