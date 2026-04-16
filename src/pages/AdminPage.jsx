@@ -271,7 +271,10 @@ function UserRow({ user, onSave, s }) {
   const [saving, setSaving] = useState(false)
   async function save() {
     setSaving(true)
-    await supabase.from('profiles').update({ display_name: name }).eq('user_id', user.user_id)
+    await Promise.all([
+      supabase.from('profiles').update({ display_name: name }).eq('user_id', user.user_id),
+      supabase.from('scores').update({ display_name: name }).eq('user_id', user.user_id),
+    ])
     setSaving(false)
     onSave()
   }
