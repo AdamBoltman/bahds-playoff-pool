@@ -1,40 +1,58 @@
-// NHL unofficial API — no key required
 const NHL_BASE = 'https://api-web.nhle.com/v1'
+const NHL_STATS = 'https://api.nhle.com/stats/rest/en'
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl'
 
-// Playoffs start April 18 2026
 const PLAYOFFS_START = new Date('2026-04-18T00:00:00Z')
 const isPlayoffs = () => new Date() >= PLAYOFFS_START
-const seasonType = () => isPlayoffs() ? 3 : 2 // 2 = regular season, 3 = playoffs
 const seasonId = '20252026'
+const gameTypeId = () => isPlayoffs() ? 3 : 2
 
 export async function fetchSkaterLeaders() {
   try {
-    const type = seasonType()
+    const gt = gameTypeId()
+    // Use the stats REST API — more reliable field names
     const [goalsRes, pointsRes, assistsRes] = await Promise.all([
-      fetch(`${NHL_BASE}/skater-stats-leaders/${seasonId}/${type}?categories=goals&limit=1`),
-      fetch(`${NHL_BASE}/skater-stats-leaders/${seasonId}/${type}?categories=points&limit=1`),
-      fetch(`${NHL_BASE}/skater-stats-leaders/${seasonId}/${type}?categories=assists&limit=1`),
+      fetch(`${NHL_STATS}/skater/summary?limit=1&sort=goals&cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=${gt}`),
+      fetch(`${NHL_STATS}/skater/summary?limit=1&sort=points&cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=${gt}`),
+      fetch(`${NHL_STATS}/skater/summary?limit=1&sort=assists&cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=${gt}`),
     ])
-    const [goals, points, assists] = await Promise.all([
+    const [goalsData, pointsData, assistsData] = await Promise.all([
       goalsRes.json(), pointsRes.json(), assistsRes.json()
     ])
+
+    const g = goalsData?.data?.[0]
+    const p = pointsData?.data?.[0]
+    const a = assistsData?.data?.[0]
+
     return {
-      goals:   goals.goals?.[0]   || null,
-      points:  points.points?.[0] || null,
-      assists: assists.assists?.[0] || null,
+      goals:   g ? { lastName: g.skaterFullName?.split(' ').pop(), fullName: g.skaterFullName, teamAbbrevs: g.teamAbbrevs, value: g.goals } : null,
+      points:  p ? { lastName: p.skaterFullName?.split(' ').pop(), fullName: p.skaterFullName, teamAbbrevs: p.teamAbbrevs, value: p.points } : null,
+      assists: a ? { lastName: a.skaterFullName?.split(' ').pop(), fullName: a.skaterFullName, teamAbbrevs: a.teamAbbrevs, value: a.assists } : null,
       isPlayoffs: isPlayoffs(),
     }
-  } catch { return { goals: null, points: null, assists: null, isPlayoffs: false } }
+  } catch (e) {
+    console.error('fetchSkaterLeaders error:', e)
+    return { goals: null, points: null, assists: null, isPlayoffs: false }
+  }
 }
 
 export async function fetchGoalieLeader() {
   try {
-    const type = seasonType()
-    const res = await fetch(`${NHL_BASE}/goalie-stats-leaders/${seasonId}/${type}?categories=gaa&limit=1`)
+    const gt = gameTypeId()
+    const res = await fetch(`${NHL_STATS}/goalie/summary?limit=1&sort=goalsAgainstAverage&dir=ASC&cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=${gt}%20and%20gamesPlayed%3E%3D10`)
     const data = await res.json()
-    return data.gaa?.[0] || null
-  } catch { return null }
+    const g = data?.data?.[0]
+    if (!g) return null
+    return {
+      lastName: g.goalieFullName?.split(' ').pop(),
+      fullName: g.goalieFullName,
+      teamAbbrevs: g.teamAbbrevs,
+      value: g.goalsAgainstAverage,
+    }
+  } catch (e) {
+    console.error('fetchGoalieLeader error:', e)
+    return null
+  }
 }
 
 export async function fetchESPNNews() {
@@ -43,7 +61,6 @@ export async function fetchESPNNews() {
     const data = await res.json()
     return (data.articles || []).slice(0, 5).map(a => ({
       headline: a.headline,
-      description: a.description,
       published: a.published,
       link: a.links?.web?.href || '#',
       source: 'ESPN'
