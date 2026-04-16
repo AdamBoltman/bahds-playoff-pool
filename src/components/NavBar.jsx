@@ -2,44 +2,46 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
 
 const links = [
-  { to: '/', label: 'Home' },
-  { to: '/picks', label: 'My Picks' },
-  { to: '/leaderboard', label: 'Leaderboard' },
-  { to: '/scoring', label: 'Scoring' },
+  { to: '/', label: 'Home', icon: '⌂' },
+  { to: '/picks', label: 'My Picks', icon: '✎' },
+  { to: '/leaderboard', label: 'Standings', icon: '☆' },
+  { to: '/scoring', label: 'Scoring', icon: '◎' },
 ]
 
 export default function NavBar() {
   const { isAdmin } = useAuth()
-  const allLinks = isAdmin ? [...links, { to: '/admin', label: 'Admin' }] : links
+  const allLinks = isAdmin ? [...links, { to: '/admin', label: 'Admin', icon: '⚙' }] : links
 
   return (
-    <nav style={{
-      background: '#020F21',
-      display: 'flex',
-      borderBottom: '1px solid rgba(255,255,255,0.08)',
-      overflowX: 'auto',
-      padding: '0 8px',
-    }}>
+    <nav style={s.nav}>
       {allLinks.map(l => (
-        <NavLink
-          key={l.to}
-          to={l.to}
-          end={l.to === '/'}
+        <NavLink key={l.to} to={l.to} end={l.to === '/'}
           style={({ isActive }) => ({
-            padding: '13px 18px',
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontSize: 14, fontWeight: 600, letterSpacing: 1,
-            textTransform: 'uppercase',
-            color: isActive ? 'white' : '#A0B4CC',
+            ...s.link,
+            color: isActive ? 'white' : '#6B8FAD',
             borderBottom: isActive ? '3px solid #C8102E' : '3px solid transparent',
-            whiteSpace: 'nowrap',
-            textDecoration: 'none',
-            transition: 'color 0.15s',
-          })}
-        >
+            background: isActive ? 'rgba(200,16,46,0.06)' : 'transparent',
+          })}>
           {l.label}
         </NavLink>
       ))}
     </nav>
   )
+}
+
+const s = {
+  nav: {
+    background: '#020e1f',
+    display: 'flex',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    overflowX: 'auto', padding: '0 4px',
+  },
+  link: {
+    padding: '13px 18px',
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontSize: 14, fontWeight: 700, letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap', textDecoration: 'none',
+    transition: 'color 0.15s, background 0.15s',
+  },
 }

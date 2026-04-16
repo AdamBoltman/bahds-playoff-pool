@@ -87,7 +87,7 @@ export default function LoginPage() {
     <div style={s.outer}>
       <div style={s.card} className="fade-up">
         <div style={s.logoWrap}>
-          <div style={s.puck}>SP</div>
+          <img src="/icon-192.png" alt="Bahds Pool" style={s.puck} />
         </div>
         <div style={s.appName}>Bahds Playoff Pool</div>
         <div style={s.title}>{titles[mode]}</div>
@@ -183,9 +183,9 @@ export default function LoginPage() {
 
 const s = {
   outer: { minHeight: 'calc(100vh - 58px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  card: { background: '#051F3E', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '36px 28px', width: '100%', maxWidth: 400, textAlign: 'center' },
+  card: { background: '#0a1628', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '40px 32px', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' },
   logoWrap: { marginBottom: 16 },
-  puck: { width: 56, height: 56, background: '#C8102E', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700 },
+  puck: { width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', display: 'inline-block' },
   appName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 },
   title: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 600, color: '#A0B4CC', marginBottom: 4 },
   subtitle: { fontSize: 13, color: '#6B8FAD', lineHeight: 1.5, marginBottom: 24 },

@@ -4,59 +4,68 @@ import { PICKS_DEADLINE } from '../lib/supabase.js'
 function getDeadlineLabel() {
   const now = new Date()
   const diff = PICKS_DEADLINE - now
-  if (diff <= 0) return 'Picks locked'
+  if (diff <= 0) return '🔒 Picks locked'
   const h = Math.floor(diff / 3600000)
   const d = Math.floor(h / 24)
-  if (d > 0) return `Picks lock in ${d}d ${h % 24}h`
-  return `Picks lock in ${h}h`
-}
-
-const styles = {
-  bar: {
-    background: 'linear-gradient(135deg,#020F21 0%,#041E42 60%,#0A1628 100%)',
-    padding: '0 20px',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    height: 58,
-    borderBottom: '2px solid #C8102E',
-    position: 'sticky', top: 0, zIndex: 200,
-  },
-  logo: { display: 'flex', alignItems: 'center', gap: 12 },
-  puck: {
-    width: 36, height: 36, background: '#C8102E', borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: "'Barlow Condensed', sans-serif", fontSize: 14, fontWeight: 700, color: 'white',
-  },
-  logoText: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: 1 },
-  logoSub: { fontSize: 10, color: '#A0B4CC', letterSpacing: 2, marginTop: 1 },
-  right: { display: 'flex', alignItems: 'center', gap: 12 },
-  pill: {
-    background: 'rgba(200,16,46,0.15)', border: '1px solid rgba(200,16,46,0.4)',
-    borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#FFB3C0',
-    animation: 'pulse 2s infinite',
-  },
-  signout: {
-    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: 6, padding: '4px 12px', fontSize: 12, color: '#A0B4CC', cursor: 'pointer',
-  }
+  const rem = h % 24
+  if (d > 0) return `⏱ ${d}d ${rem}h to lock`
+  if (h > 0) return `⏱ ${h}h to lock`
+  const m = Math.floor(diff / 60000)
+  return `⏱ ${m}m to lock`
 }
 
 export default function TopBar() {
   const { user, signOut } = useAuth()
+
   return (
-    <div style={styles.bar}>
-      <div style={styles.logo}>
-        <div style={styles.puck}>SP</div>
+    <div style={s.bar}>
+      <div style={s.logo}>
+        <img src="/icon-192.png" alt="Bahds Pool" style={s.logoImg} />
         <div>
-          <div style={styles.logoText}>Bahds Playoff Pool</div>
-          <div style={styles.logoSub}>2026 PLAYOFFS</div>
+          <div style={s.logoText}>Bahds Playoff Pool</div>
+          <div style={s.logoSub}>2026 Stanley Cup Playoffs</div>
         </div>
       </div>
-      <div style={styles.right}>
-        <div style={styles.pill}>{getDeadlineLabel()}</div>
+      <div style={s.right}>
+        <div style={s.pill}>{getDeadlineLabel()}</div>
         {user && (
-          <button style={styles.signout} onClick={signOut}>Sign out</button>
+          <button style={s.signout} onClick={signOut}>Sign out</button>
         )}
       </div>
     </div>
   )
+}
+
+const s = {
+  bar: {
+    background: '#020e1f',
+    padding: '0 20px',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    height: 60,
+    borderBottom: '2px solid #C8102E',
+    position: 'sticky', top: 0, zIndex: 200,
+    boxShadow: '0 2px 20px rgba(0,0,0,0.4)',
+  },
+  logo: { display: 'flex', alignItems: 'center', gap: 10 },
+  logoImg: { width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' },
+  logoText: {
+    fontFamily: "'Barlow Condensed', sans-serif",
+    fontSize: 19, fontWeight: 700, letterSpacing: 0.5, color: 'white', lineHeight: 1.2,
+  },
+  logoSub: { fontSize: 10, color: '#6B8FAD', letterSpacing: 1.5, textTransform: 'uppercase' },
+  right: { display: 'flex', alignItems: 'center', gap: 10 },
+  pill: {
+    background: 'rgba(200,16,46,0.12)',
+    border: '1px solid rgba(200,16,46,0.35)',
+    borderRadius: 20, padding: '5px 12px',
+    fontSize: 12, color: '#FFB3C0', fontWeight: 500,
+    animation: 'pulse 2.5s infinite',
+  },
+  signout: {
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 6, padding: '5px 12px',
+    fontSize: 12, color: '#6B8FAD', cursor: 'pointer',
+    transition: 'color 0.15s, border-color 0.15s',
+  },
 }

@@ -289,16 +289,16 @@ function Pts({ v }) {
 }
 
 const s = {
-  tableWrap: { background: '#051F3E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' },
+  tableWrap: { background: '#0d2040', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     fontFamily: "'Barlow Condensed', sans-serif", fontSize: 11, fontWeight: 600,
     letterSpacing: 1.5, textTransform: 'uppercase', color: '#6B8FAD', textAlign: 'left',
     padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)',
   },
-  td: { padding: '12px 14px', fontSize: 14, borderBottom: '1px solid rgba(255,255,255,0.05)' },
+  td: { padding: '14px 14px', fontSize: 14, borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'middle' },
   youBadge: { background: '#C8102E', color: 'white', fontSize: 10, padding: '2px 7px', borderRadius: 10, marginLeft: 8, fontWeight: 600, verticalAlign: 'middle' },
-  lockedNote: { fontSize: 13, color: '#6B8FAD', marginBottom: 12 },
+  lockedNote: { fontSize: 13, color: '#A0B4CC', marginBottom: 14, padding: '10px 14px', background: 'rgba(55,138,221,0.07)', border: '1px solid rgba(55,138,221,0.15)', borderRadius: 8 },
   roundHeader: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, fontWeight: 600, color: '#A0B4CC', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(2,15,33,0.85)',
