@@ -1,5 +1,5 @@
-const NHL_STATS = 'https://api.nhle.com/stats/rest/en'
-const NHL_BASE = 'https://api-web.nhle.com/v1'
+// All NHL API calls go through /api/nhl proxy to avoid CORS issues
+const PROXY = '/api/nhl'
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl'
 
 const PLAYOFFS_START = new Date('2026-04-18T00:00:00Z')
@@ -7,38 +7,33 @@ export const isPlayoffs = () => new Date() >= PLAYOFFS_START
 const seasonId = '20252026'
 const gameTypeId = () => isPlayoffs() ? 3 : 2
 
-// Build correct NHL stats API URL with proper sort format
-function skaterUrl(sortProp) {
-  const gt = gameTypeId()
-  const sort = encodeURIComponent(`[{"property":"${sortProp}","direction":"DESC"},{"property":"playerId","direction":"ASC"}]`)
-  return `${NHL_STATS}/skater/summary?isAggregate=false&isGame=false&sort=${sort}&start=0&limit=1&factCayenneExp=gamesPlayed%3E%3D1&cayenneExp=gameTypeId%3D${gt}%20and%20seasonId%3C%3D${seasonId}%20and%20seasonId%3E%3D${seasonId}`
-}
-
-function goalieUrl() {
-  const gt = gameTypeId()
-  const sort = encodeURIComponent(`[{"property":"goalsAgainstAverage","direction":"ASC"},{"property":"playerId","direction":"ASC"}]`)
-  return `${NHL_STATS}/goalie/summary?isAggregate=false&isGame=false&sort=${sort}&start=0&limit=1&factCayenneExp=gamesPlayed%3E%3D10&cayenneExp=gameTypeId%3D${gt}%20and%20seasonId%3C%3D${seasonId}%20and%20seasonId%3E%3D${seasonId}`
+async function nhlFetch(endpoint, params = {}) {
+  const qs = new URLSearchParams({ endpoint, ...params }).toString()
+  const res = await fetch(`${PROXY}?${qs}`)
+  if (!res.ok) throw new Error(`NHL proxy error: ${res.status}`)
+  return res.json()
 }
 
 export async function fetchSkaterLeaders() {
   try {
-    const [goalsRes, pointsRes, assistsRes] = await Promise.all([
-      fetch(skaterUrl('goals')),
-      fetch(skaterUrl('points')),
-      fetch(skaterUrl('assists')),
-    ])
+    const gt = gameTypeId()
+    const cayenne = `gameTypeId=${gt} and seasonId<=${seasonId} and seasonId>=${seasonId}`
+    const base = { isAggregate: 'false', isGame: 'false', start: '0', limit: '1', factCayenneExp: 'gamesPlayed>=1', cayenneExp: cayenne }
+
     const [goalsData, pointsData, assistsData] = await Promise.all([
-      goalsRes.json(), pointsRes.json(), assistsRes.json()
+      nhlFetch('skater/summary', { ...base, sort: `[{"property":"goals","direction":"DESC"}]` }),
+      nhlFetch('skater/summary', { ...base, sort: `[{"property":"points","direction":"DESC"}]` }),
+      nhlFetch('skater/summary', { ...base, sort: `[{"property":"assists","direction":"DESC"}]` }),
     ])
 
-    function parse(data, statField) {
+    function parse(data, field) {
       const p = data?.data?.[0]
       if (!p) return null
       return {
         lastName: p.skaterFullName?.split(' ').slice(1).join(' ') || p.skaterFullName,
         fullName: p.skaterFullName,
         teamAbbrevs: p.teamAbbrevs,
-        value: p[statField],
+        value: p[field],
       }
     }
 
@@ -49,15 +44,21 @@ export async function fetchSkaterLeaders() {
       isPlayoffs: isPlayoffs(),
     }
   } catch (e) {
-    console.error('fetchSkaterLeaders error:', e)
+    console.error('fetchSkaterLeaders:', e)
     return { goals: null, points: null, assists: null, isPlayoffs: false }
   }
 }
 
 export async function fetchGoalieLeader() {
   try {
-    const res = await fetch(goalieUrl())
-    const data = await res.json()
+    const gt = gameTypeId()
+    const cayenne = `gameTypeId=${gt} and seasonId<=${seasonId} and seasonId>=${seasonId}`
+    const data = await nhlFetch('goalie/summary', {
+      isAggregate: 'false', isGame: 'false', start: '0', limit: '1',
+      factCayenneExp: 'gamesPlayed>=10',
+      cayenneExp: cayenne,
+      sort: `[{"property":"goalsAgainstAverage","direction":"ASC"}]`,
+    })
     const g = data?.data?.[0]
     if (!g) return null
     return {
@@ -67,9 +68,16 @@ export async function fetchGoalieLeader() {
       value: g.goalsAgainstAverage,
     }
   } catch (e) {
-    console.error('fetchGoalieLeader error:', e)
+    console.error('fetchGoalieLeader:', e)
     return null
   }
+}
+
+export async function fetchNHLScores() {
+  try {
+    const data = await nhlFetch('score/now')
+    return data.games || []
+  } catch { return [] }
 }
 
 export async function fetchESPNNews() {
@@ -82,14 +90,6 @@ export async function fetchESPNNews() {
       link: a.links?.web?.href || '#',
       source: 'ESPN'
     }))
-  } catch { return [] }
-}
-
-export async function fetchNHLScores() {
-  try {
-    const res = await fetch(`${NHL_BASE}/score/now`)
-    const data = await res.json()
-    return data.games || []
   } catch { return [] }
 }
 
