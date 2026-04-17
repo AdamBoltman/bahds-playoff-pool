@@ -10,6 +10,7 @@ export default function AdminPage() {
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
   const [results, setResults] = useState({})
+  const [liveScores, setLiveScores] = useState({})
   const [matchupOverrides, setMatchupOverrides] = useState({})
   const [users, setUsers] = useState([])
   const [saving, setSaving] = useState(false)
@@ -22,7 +23,27 @@ export default function AdminPage() {
     loadResults()
     loadUsers()
     loadMatchupOverrides()
+    loadLiveScores()
   }, [isAdmin])
+
+  async function loadLiveScores() {
+    const { data } = await supabase.from('series_scores').select('*')
+    if (data) {
+      const obj = {}
+      data.forEach(r => { obj[r.matchup_id] = { score1: r.score1, score2: r.score2 } })
+      setLiveScores(obj)
+    }
+  }
+
+  async function saveLiveScores() {
+    setSaving(true)
+    const rows = Object.entries(liveScores)
+      .filter(([_, v]) => v.score1 !== undefined || v.score2 !== undefined)
+      .map(([matchup_id, v]) => ({ matchup_id, score1: Number(v.score1)||0, score2: Number(v.score2)||0 }))
+    await supabase.from('series_scores').upsert(rows, { onConflict: 'matchup_id' })
+    setSaving(false)
+    flash('Series scores updated!')
+  }
 
   async function loadResults() {
     const { data } = await supabase.from('results').select('*')
@@ -125,8 +146,8 @@ export default function AdminPage() {
 
   if (!isAdmin) return null
 
-  const tabs = ['matchups', 'results', 'users']
-  const tabLabels = { matchups: 'Edit Matchups', results: 'Enter Results', users: 'Manage Users' }
+  const tabs = ['matchups', 'results', 'scores', 'users']
+  const tabLabels = { matchups: 'Edit Matchups', results: 'Enter Results', scores: 'Live Scores', users: 'Manage Users' }
 
   return (
     <div className="page-wrap fade-up">
@@ -246,6 +267,43 @@ export default function AdminPage() {
       )}
 
       {/* MANAGE USERS TAB */}
+      {activeTab === 'scores' && (
+        <>
+          <div className="section-label">Live Series Scores</div>
+          <div style={{ fontSize: 13, color: '#6B8FAD', marginBottom: 16 }}>
+            Update these during a series to show live scores on the bracket (e.g. CAR 2 - OTT 1).
+          </div>
+          {ROUNDS[0].matchups.map(m => {
+            const ov = matchupOverrides[m.id] || {}
+            const a1 = ov.a1 || m.a1
+            const a2 = ov.a2 || m.a2
+            const ls = liveScores[m.id] || { score1: 0, score2: 0 }
+            return (
+              <div key={m.id} className="card" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 120px', fontSize: 14 }}>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a1}</span>
+                  <span style={{ color: '#6B8FAD', margin: '0 6px' }}>vs</span>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a2}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input style={{ ...s.select, width: 50, textAlign: 'center' }}
+                    type="number" min="0" max="4" value={ls.score1}
+                    onChange={e => setLiveScores(sc => ({ ...sc, [m.id]: { ...sc[m.id], score1: e.target.value }}))} />
+                  <span style={{ color: '#6B8FAD' }}>-</span>
+                  <input style={{ ...s.select, width: 50, textAlign: 'center' }}
+                    type="number" min="0" max="4" value={ls.score2}
+                    onChange={e => setLiveScores(sc => ({ ...sc, [m.id]: { ...sc[m.id], score2: e.target.value }}))} />
+                </div>
+              </div>
+            )
+          })}
+          <button style={s.btn} onClick={saveLiveScores} disabled={saving} style={{ marginTop: 12, ...s.btn }}>
+            {saving ? <span className="spinner" /> : 'Save Live Scores'}
+          </button>
+          {msg && <div style={s.flashMsg}>{msg}</div>}
+        </>
+      )}
+
       {activeTab === 'users' && (
         <>
           <div className="section-label">Pool Members</div>

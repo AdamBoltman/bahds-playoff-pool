@@ -140,3 +140,20 @@ input, textarea, select { font-family: 'Barlow', sans-serif; }
 }
 .skeleton-text { height: 14px; margin-bottom: 8px; border-radius: 4px; }
 .skeleton-title { height: 24px; margin-bottom: 12px; border-radius: 4px; width: 60%; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Crisper card surfaces — lighter than before */
+.card {
+  background: #162b45 !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+}
+
+/* Ice-white tint on hover */
+.card:hover {
+  border-color: rgba(255,255,255,0.2) !important;
+  background: #1a3050 !important;
+}

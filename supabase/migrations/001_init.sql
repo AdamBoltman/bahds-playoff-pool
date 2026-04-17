@@ -108,3 +108,14 @@ create table if not exists public.matchup_overrides (
 alter table public.matchup_overrides enable row level security;
 create policy "overrides_select" on public.matchup_overrides for select using (true);
 create policy "overrides_all"    on public.matchup_overrides for all   using (true);
+
+-- 7. SERIES SCORES — admin enters live series scores (e.g. CAR 2 OTT 1)
+create table if not exists public.series_scores (
+  matchup_id  text primary key,
+  score1      int default 0,  -- wins for team 1
+  score2      int default 0,  -- wins for team 2
+  updated_at  timestamptz default now()
+);
+alter table public.series_scores enable row level security;
+create policy "series_select" on public.series_scores for select using (true);
+create policy "series_all"    on public.series_scores for all   using (true);
