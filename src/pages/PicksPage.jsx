@@ -467,7 +467,7 @@ function FinalCardSVG({ x, cy, resolveMatchup, picks, getPickedAbbrev, onTap, lo
 
   return (
     <g style={{ cursor: canTap ? 'pointer' : 'default' }} onClick={() => canTap && onTap('f1')}>
-      {/* Championship border if champion picked */
+      {/* Championship border if champion picked */}
       {pickedAbbrev && (
         <rect x={cardX-2} y={y+14} width={cardW+4} height={matchupH+2} rx="12"
           fill="none" stroke="rgba(255,215,0,0.2)" strokeWidth="2"/>
