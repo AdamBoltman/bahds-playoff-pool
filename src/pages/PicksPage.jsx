@@ -13,11 +13,18 @@ const RGAP = 38
 const MGAP = 16
 
 const SOURCES = {
-  e5: { t1: 'e1', t2: 'e3' },
-  e6: { t1: 'e2', t2: 'e4' },
+  e5: { t1: 'e3', t2: 'e2' },  // BUF/BOS winner vs TBL/MTL winner
+  e6: { t1: 'e1', t2: 'e4' },  // CAR/OTT winner vs PIT/PHI winner
   e7: { t1: 'e5', t2: 'e6' },
-  w5: { t1: 'w1', t2: 'w3' },
-  w6: { t1: 'w2', t2: 'w4' },
+  w5: { t1: 'w1', t2: 'w2' },  // COL/LAK winner vs DAL/MIN winner
+  w6: { t1: 'w3', t2: 'w4' },  // VGK/UTA winner vs EDM/ANA winner
+  w7: { t1: 'w5', t2: 'w6' },
+  f1: { t1: 'w7', t2: 'e7' },
+},  // Metro 1/WC2 vs Metro 2/3
+  e6: { t1: 'e2', t2: 'e3' },  // Atlantic 2/3 vs Atlantic 1/WC1
+  e7: { t1: 'e5', t2: 'e6' },
+  w5: { t1: 'w1', t2: 'w4' },  // Central 1/WC2 vs Pacific 2/3
+  w6: { t1: 'w2', t2: 'w3' },  // Central 2/3 vs Pacific 1/WC1
   w7: { t1: 'w5', t2: 'w6' },
   f1: { t1: 'w7', t2: 'e7' },
 }
@@ -30,7 +37,7 @@ const WEST_COLS = [
 const EAST_COLS = [
   { round: 3, ids: ['e7'],               pts: 15 },
   { round: 2, ids: ['e5','e6'],           pts: 10 },
-  { round: 1, ids: ['e1','e2','e3','e4'], pts: 5  },
+  { round: 1, ids: ['e3','e2','e1','e4'], pts: 5  },
 ]
 
 export default function PicksPage() {

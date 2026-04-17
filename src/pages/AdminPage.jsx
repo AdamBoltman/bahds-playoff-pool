@@ -8,11 +8,18 @@ const ALL_MATCHUPS = ROUNDS.flatMap(r => r.matchups.map(m => ({ ...m, round: r.i
 
 // Which round-1 matchups feed into which higher-round slots
 const SOURCES = {
-  e5: { t1: 'e1', t2: 'e3' },
-  e6: { t1: 'e2', t2: 'e4' },
+  e5: { t1: 'e3', t2: 'e2' },  // BUF/BOS winner vs TBL/MTL winner
+  e6: { t1: 'e1', t2: 'e4' },  // CAR/OTT winner vs PIT/PHI winner
   e7: { t1: 'e5', t2: 'e6' },
-  w5: { t1: 'w1', t2: 'w3' },
-  w6: { t1: 'w2', t2: 'w4' },
+  w5: { t1: 'w1', t2: 'w2' },  // COL/LAK winner vs DAL/MIN winner
+  w6: { t1: 'w3', t2: 'w4' },  // VGK/UTA winner vs EDM/ANA winner
+  w7: { t1: 'w5', t2: 'w6' },
+  f1: { t1: 'w7', t2: 'e7' },
+},
+  e6: { t1: 'e2', t2: 'e3' },
+  e7: { t1: 'e5', t2: 'e6' },
+  w5: { t1: 'w1', t2: 'w4' },
+  w6: { t1: 'w2', t2: 'w3' },
   w7: { t1: 'w5', t2: 'w6' },
   f1: { t1: 'w7', t2: 'e7' },
 }
