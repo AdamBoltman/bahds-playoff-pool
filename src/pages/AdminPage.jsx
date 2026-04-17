@@ -6,6 +6,35 @@ import { useNavigate } from 'react-router-dom'
 
 const ALL_MATCHUPS = ROUNDS.flatMap(r => r.matchups.map(m => ({ ...m, round: r.id })))
 
+// Which round-1 matchups feed into which higher-round slots
+const SOURCES = {
+  e5: { t1: 'e1', t2: 'e3' },
+  e6: { t1: 'e2', t2: 'e4' },
+  e7: { t1: 'e5', t2: 'e6' },
+  w5: { t1: 'w1', t2: 'w3' },
+  w6: { t1: 'w2', t2: 'w4' },
+  w7: { t1: 'w5', t2: 'w6' },
+  f1: { t1: 'w7', t2: 'e7' },
+}
+
+// Resolve the actual teams for a matchup based on results already entered
+function resolveAdminMatchup(matchupId, results, overrides) {
+  const sources = SOURCES[matchupId]
+  if (!sources) {
+    // Round 1 — use base data + overrides
+    const base = ALL_MATCHUPS.find(m => m.id === matchupId)
+    if (!base) return { a1: '???', a2: '???' }
+    const ov = overrides[matchupId] || {}
+    return { a1: ov.a1 || base.a1 || '???', a2: ov.a2 || base.a2 || '???' }
+  }
+  // Higher round — winners of source matchups
+  const src1 = results[sources.t1]
+  const src2 = results[sources.t2]
+  const a1 = src1?.winner || null
+  const a2 = src2?.winner || null
+  return { a1: a1 || '???', a2: a2 || '???' }
+}
+
 export default function AdminPage() {
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
@@ -215,39 +244,43 @@ export default function AdminPage() {
               <div style={s.roundHeader}>{round.label}</div>
               {round.matchups.map(m => {
                 const res = results[m.id] || {}
-                const ov = matchupOverrides[m.id] || {}
-                const a1 = ov.a1 || m.a1
-                const a2 = ov.a2 || m.a2
+                const { a1, a2 } = resolveAdminMatchup(m.id, results, matchupOverrides)
+                const isTBD = a1 === '???' || a2 === '???'
                 return (
-                  <div key={m.id} className="card" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div key={m.id} className="card" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', opacity: isTBD ? 0.5 : 1 }}>
                     <div style={{ flex: '1 1 140px', fontSize: 14 }}>
-                      <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a1}</span>
+                      <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: isTBD ? '#9CAAB8' : '#041E42' }}>{a1}</span>
                       <span style={{ color: '#9CAAB8', margin: '0 6px' }}>vs</span>
-                      <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a2}</span>
+                      <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: isTBD ? '#9CAAB8' : '#041E42' }}>{a2}</span>
+                      {isTBD && <span style={{ fontSize: 11, color: '#9CAAB8', marginLeft: 6 }}>(awaiting previous results)</span>}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <label style={s.inputLabel}>Winner</label>
-                      <select style={s.select} value={res.winner || ''}
-                        onChange={e => setResult(m.id, 'winner', e.target.value)}>
-                        <option value="">—</option>
-                        <option value={a1}>{a1}</option>
-                        <option value={a2}>{a2}</option>
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <label style={s.inputLabel}>Games</label>
-                      <select style={s.select} value={res.games || ''}
-                        onChange={e => setResult(m.id, 'games', Number(e.target.value))}>
-                        <option value="">—</option>
-                        {[4, 5, 6, 7].map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    {res.winner && res.games ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 12, color: '#1D9E75' }}>✓ {res.winner} in {res.games}</span>
-                        <button onClick={() => clearResult(m.id)} style={s.clearBtn} title="Clear this result">✕</button>
-                      </div>
-                    ) : null}
+                    {!isTBD && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <label style={s.inputLabel}>Winner</label>
+                          <select style={s.select} value={res.winner || ''}
+                            onChange={e => setResult(m.id, 'winner', e.target.value)}>
+                            <option value="">—</option>
+                            <option value={a1}>{a1}</option>
+                            <option value={a2}>{a2}</option>
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <label style={s.inputLabel}>Games</label>
+                          <select style={s.select} value={res.games || ''}
+                            onChange={e => setResult(m.id, 'games', Number(e.target.value))}>
+                            <option value="">—</option>
+                            {[4, 5, 6, 7].map(g => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                        </div>
+                        {res.winner && res.games ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 12, color: '#0F6E56', fontWeight: 600 }}>✓ {res.winner} in {res.games}</span>
+                            <button onClick={() => clearResult(m.id)} style={s.clearBtn} title="Clear this result">✕</button>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 )
               })}
@@ -273,31 +306,35 @@ export default function AdminPage() {
           <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 16 }}>
             Update these during a series to show live scores on the bracket (e.g. CAR 2 - OTT 1).
           </div>
-          {ROUNDS[0].matchups.map(m => {
-            const ov = matchupOverrides[m.id] || {}
-            const a1 = ov.a1 || m.a1
-            const a2 = ov.a2 || m.a2
-            const ls = liveScores[m.id] || { score1: 0, score2: 0 }
+          {ROUNDS.map(round => (
+            <div key={round.id} style={{ marginBottom: 20 }}>
+              <div style={s.roundHeader}>{round.label}</div>
+              {round.matchups.map(m => {
+                const { a1, a2 } = resolveAdminMatchup(m.id, results, matchupOverrides)
+                const isTBD = a1 === '???' || a2 === '???'
+                const ls = liveScores[m.id] || { score1: 0, score2: 0 }
             return (
               <div key={m.id} className="card" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 120px', fontSize: 14 }}>
-                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a1}</span>
+                <div style={{ flex: '1 1 120px', fontSize: 14, opacity: isTBD ? 0.45 : 1 }}>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: isTBD ? '#9CAAB8' : '#041E42' }}>{a1}</span>
                   <span style={{ color: '#9CAAB8', margin: '0 6px' }}>vs</span>
-                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a2}</span>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, color: isTBD ? '#9CAAB8' : '#041E42' }}>{a2}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input style={{ ...s.select, width: 50, textAlign: 'center' }}
-                    type="number" min="0" max="4" value={ls.score1}
+                  <input style={{ ...s.select, width: 50, textAlign: 'center', opacity: isTBD ? 0.4 : 1 }}
+                    type="number" min="0" max="4" value={ls.score1} disabled={isTBD}
                     onChange={e => setLiveScores(sc => ({ ...sc, [m.id]: { ...sc[m.id], score1: e.target.value }}))} />
                   <span style={{ color: '#9CAAB8' }}>-</span>
-                  <input style={{ ...s.select, width: 50, textAlign: 'center' }}
-                    type="number" min="0" max="4" value={ls.score2}
+                  <input style={{ ...s.select, width: 50, textAlign: 'center', opacity: isTBD ? 0.4 : 1 }}
+                    type="number" min="0" max="4" value={ls.score2} disabled={isTBD}
                     onChange={e => setLiveScores(sc => ({ ...sc, [m.id]: { ...sc[m.id], score2: e.target.value }}))} />
                 </div>
               </div>
             )
-          })}
-          <button style={s.btn} onClick={saveLiveScores} disabled={saving} style={{ marginTop: 12, ...s.btn }}>
+              })}
+            </div>
+          ))}
+          <button style={{ marginTop: 12, ...s.btn }} onClick={saveLiveScores} disabled={saving}>
             {saving ? <span className="spinner" /> : 'Save Live Scores'}
           </button>
           {msg && <div style={s.flashMsg}>{msg}</div>}
