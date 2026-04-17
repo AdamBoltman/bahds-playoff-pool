@@ -165,7 +165,7 @@ export default function AdminPage() {
       {activeTab === 'matchups' && (
         <>
           <div className="section-label">Edit Round 1 Matchups</div>
-          <div style={{ fontSize: 13, color: '#6B8FAD', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 16 }}>
             Update team names and abbreviations once the bracket is confirmed tonight. Abbreviations must match exactly for scoring (e.g. COL, TBL, CAR). Hit Save when done.
           </div>
           {ROUNDS[0].matchups.map(m => {
@@ -176,7 +176,7 @@ export default function AdminPage() {
             const a2 = ov.a2 ?? m.a2
             return (
               <div key={m.id} className="card" style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: '#6B8FAD', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase' }}>{m.conf} — {m.id.toUpperCase()}</div>
+                <div style={{ fontSize: 11, color: '#9CAAB8', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase' }}>{m.conf} — {m.id.toUpperCase()}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 20px 1fr', gap: 8, alignItems: 'center' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <input style={s.input} placeholder="Full team name" value={t1}
@@ -184,7 +184,7 @@ export default function AdminPage() {
                     <input style={{ ...s.input, width: 70 }} placeholder="ABV" value={a1} maxLength={3}
                       onChange={e => setMatchupOverrides(o => ({ ...o, [m.id]: { ...o[m.id], a1: e.target.value.toUpperCase(), t1: ov.t1 ?? m.t1, t2: ov.t2 ?? m.t2, a2: ov.a2 ?? m.a2 } }))} />
                   </div>
-                  <div style={{ textAlign: 'center', fontSize: 12, color: '#6B8FAD' }}>vs</div>
+                  <div style={{ textAlign: 'center', fontSize: 12, color: '#9CAAB8' }}>vs</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <input style={s.input} placeholder="Full team name" value={t2}
                       onChange={e => setMatchupOverrides(o => ({ ...o, [m.id]: { ...o[m.id], t2: e.target.value, a1: ov.a1 ?? m.a1, t1: ov.t1 ?? m.t1, a2: ov.a2 ?? m.a2 } }))} />
@@ -206,7 +206,7 @@ export default function AdminPage() {
       {activeTab === 'results' && (
         <>
           <div className="section-label">Series Results</div>
-          <div style={{ fontSize: 13, color: '#6B8FAD', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 16 }}>
             Enter winner and games for each completed series. Hit Save, then Recalculate Scores. Use the ✕ button to clear a result if you made a mistake.
           </div>
 
@@ -222,7 +222,7 @@ export default function AdminPage() {
                   <div key={m.id} className="card" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <div style={{ flex: '1 1 140px', fontSize: 14 }}>
                       <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a1}</span>
-                      <span style={{ color: '#6B8FAD', margin: '0 6px' }}>vs</span>
+                      <span style={{ color: '#9CAAB8', margin: '0 6px' }}>vs</span>
                       <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a2}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -270,7 +270,7 @@ export default function AdminPage() {
       {activeTab === 'scores' && (
         <>
           <div className="section-label">Live Series Scores</div>
-          <div style={{ fontSize: 13, color: '#6B8FAD', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 16 }}>
             Update these during a series to show live scores on the bracket (e.g. CAR 2 - OTT 1).
           </div>
           {ROUNDS[0].matchups.map(m => {
@@ -282,14 +282,14 @@ export default function AdminPage() {
               <div key={m.id} className="card" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 120px', fontSize: 14 }}>
                   <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a1}</span>
-                  <span style={{ color: '#6B8FAD', margin: '0 6px' }}>vs</span>
+                  <span style={{ color: '#9CAAB8', margin: '0 6px' }}>vs</span>
                   <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>{a2}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input style={{ ...s.select, width: 50, textAlign: 'center' }}
                     type="number" min="0" max="4" value={ls.score1}
                     onChange={e => setLiveScores(sc => ({ ...sc, [m.id]: { ...sc[m.id], score1: e.target.value }}))} />
-                  <span style={{ color: '#6B8FAD' }}>-</span>
+                  <span style={{ color: '#9CAAB8' }}>-</span>
                   <input style={{ ...s.select, width: 50, textAlign: 'center' }}
                     type="number" min="0" max="4" value={ls.score2}
                     onChange={e => setLiveScores(sc => ({ ...sc, [m.id]: { ...sc[m.id], score2: e.target.value }}))} />
@@ -307,13 +307,13 @@ export default function AdminPage() {
       {activeTab === 'users' && (
         <>
           <div className="section-label">Pool Members</div>
-          <div style={{ fontSize: 13, color: '#6B8FAD', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 16 }}>
             Everyone who has signed in. Update display names here.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {users.map(u => <UserRow key={u.user_id} user={u} onSave={loadUsers} s={s} />)}
             {users.length === 0 && (
-              <div style={{ color: '#6B8FAD', fontSize: 14, padding: 20, textAlign: 'center' }}>
+              <div style={{ color: '#9CAAB8', fontSize: 14, padding: 20, textAlign: 'center' }}>
                 No members yet — share the app URL and have everyone sign in.
               </div>
             )}
@@ -338,7 +338,7 @@ function UserRow({ user, onSave, s }) {
   }
   return (
     <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-      <div style={{ flex: 1, fontSize: 13, color: '#A0B4CC', minWidth: 200 }}>{user.email}</div>
+      <div style={{ flex: 1, fontSize: 13, color: '#6B7A8D', minWidth: 200 }}>{user.email}</div>
       <input style={{ ...s.input, width: 160 }} value={name} onChange={e => setName(e.target.value)} placeholder="Display name" />
       <button style={{ ...s.btn, padding: '6px 14px', fontSize: 13, width: 'auto' }} onClick={save} disabled={saving}>
         {saving ? '...' : 'Save'}
@@ -348,15 +348,15 @@ function UserRow({ user, onSave, s }) {
 }
 
 const s = {
-  adminBanner: { background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: 8, padding: '10px 16px', fontSize: 13, color: '#FFD700', marginBottom: 20 },
+  adminBanner: { background: '#FFF8E1', border: '1px solid rgba(212,168,0,0.25)', borderRadius: 8, padding: '10px 16px', fontSize: 13, color: '#B8900A', marginBottom: 20 },
   tabs: { display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' },
-  tab: { padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 500, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#A0B4CC', cursor: 'pointer' },
-  tabActive: { background: '#C8102E', borderColor: '#C8102E', color: 'white' },
-  roundHeader: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, fontWeight: 700, color: '#A0B4CC', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
-  inputLabel: { fontSize: 12, color: '#6B8FAD', whiteSpace: 'nowrap' },
-  input: { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: 'white', fontSize: 13, padding: '6px 10px', outline: 'none', width: '100%' },
-  select: { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: 'white', fontSize: 13, padding: '6px 10px', outline: 'none' },
-  btn: { padding: '12px 20px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 8, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  tab: { padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 500, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#6B7A8D', cursor: 'pointer' },
+  tabActive: { background: '#C8102E', borderColor: '#C8102E', color: '#041E42' },
+  roundHeader: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, fontWeight: 700, color: '#6B7A8D', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
+  inputLabel: { fontSize: 12, color: '#9CAAB8', whiteSpace: 'nowrap' },
+  input: { background: '#F8F9FB', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, color: '#041E42', fontSize: 13, padding: '6px 10px', outline: 'none', width: '100%' },
+  select: { background: '#F8F9FB', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, color: '#041E42', fontSize: 13, padding: '6px 10px', outline: 'none' },
+  btn: { padding: '12px 20px', background: '#C8102E', color: '#041E42', border: 'none', borderRadius: 8, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
   clearBtn: { background: 'rgba(200,16,46,0.2)', border: '1px solid rgba(200,16,46,0.4)', color: '#FFB3C0', borderRadius: 5, padding: '3px 8px', fontSize: 12, cursor: 'pointer' },
   flashMsg: { marginTop: 12, fontSize: 13, color: '#1D9E75' },
 }

@@ -467,13 +467,7 @@ function FinalCardSVG({ x, cy, resolveMatchup, picks, getPickedAbbrev, onTap, lo
 
   return (
     <g style={{ cursor: canTap ? 'pointer' : 'default' }} onClick={() => canTap && onTap('f1')}>
-      {/* Stanley Cup background watermark */}
-      <text x={x+CW/2} y={y+matchupH/2+28} textAnchor="middle"
-        style={{ fontSize: 52, fill: 'rgba(255,215,0,0.06)', fontFamily: 'serif', userSelect: 'none' }}>
-        🏆
-      </text>
-
-      {/* Championship border glow if someone picked a champion */}
+      {/* Championship border if champion picked */
       {pickedAbbrev && (
         <rect x={cardX-2} y={y+14} width={cardW+4} height={matchupH+2} rx="12"
           fill="none" stroke="rgba(255,215,0,0.2)" strokeWidth="2"/>
@@ -537,7 +531,7 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
                 style={{
                   ...s.teamBtn,
                   borderColor: sel ? '#1D9E75' : 'rgba(255,255,255,0.1)',
-                  background: sel ? 'rgba(29,158,117,0.15)' : '#0d1f35',
+                  background: sel ? 'rgba(29,158,117,0.08)' : '#F8F9FB',
                   opacity: isTBD ? 0.35 : 1,
                   transform: sel ? 'scale(1.02)' : 'scale(1)',
                 }}
@@ -548,7 +542,7 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
                 ) : (
                   <div style={s.tbdCircle}>?</div>
                 )}
-                <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, marginTop:8, color: sel ? 'white' : '#A0B4CC' }}>
+                <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, marginTop:8, color: sel ? '#041E42' : '#6B7A8D' }}>
                   {isTBD ? 'TBD' : abbrev}
                 </div>
                 <div style={{ fontSize:11, color:'#6B8FAD', marginTop:2 }}>{isTBD ? '—' : name?.split(' ').pop()}</div>
@@ -565,8 +559,8 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
               style={{
                 ...s.gamesBtn,
                 borderColor: selectedGames===g ? '#C8102E' : 'rgba(255,255,255,0.1)',
-                background: selectedGames===g ? 'rgba(200,16,46,0.2)' : '#0d1f35',
-                color: selectedGames===g ? '#FFB3C0' : '#6B8FAD',
+                background: selectedGames===g ? 'rgba(200,16,46,0.08)' : '#F8F9FB',
+                color: selectedGames===g ? '#C8102E' : '#6B7A8D',
                 transform: selectedGames===g ? 'scale(1.04)' : 'scale(1)',
               }}
               onClick={() => onGames(g)}>
@@ -586,23 +580,23 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
 }
 
 const s = {
-  lockedBanner: { margin:'0 16px 12px', background:'rgba(200,16,46,0.08)', border:'1px solid rgba(200,16,46,0.2)', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#FFB3C0' },
-  openBanner: { margin:'0 16px 12px', background:'rgba(29,158,117,0.08)', border:'1px solid rgba(29,158,117,0.2)', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#5DCAA5', display:'flex', justifyContent:'space-between', alignItems:'center' },
+  lockedBanner: { margin:'0 16px 12px', background:'#FFF0F1', border:'1px solid rgba(200,16,46,0.2)', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#C8102E' },
+  openBanner: { margin:'0 16px 12px', background:'#F0FBF7', border:'1px solid rgba(29,158,117,0.2)', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#0F6E56', display:'flex', justifyContent:'space-between', alignItems:'center' },
   scrollWrap: { overflowX:'auto', WebkitOverflowScrolling:'touch', padding:'0 12px 16px' },
   bracketOuter: { display:'inline-block', minWidth:'100%' },
   submitBtn: { width:'100%', marginTop:4, padding:'14px', background:'#C8102E', color:'white', border:'none', borderRadius:12, fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, letterSpacing:1, textTransform:'uppercase', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'opacity 0.2s' },
-  savedMsg: { textAlign:'center', color:'#1D9E75', fontSize:13, marginTop:10 },
-  overlay: { position:'fixed', inset:0, background:'rgba(2,10,24,0.94)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:400, backdropFilter:'blur(4px)' },
-  modal: { background:'#0a1628', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', width:'100%', maxWidth:500, animation:'slideUp 0.2s ease both' },
+  savedMsg: { textAlign:'center', color:'#0F6E56', fontSize:13, marginTop:10, fontWeight:500 },
+  overlay: { position:'fixed', inset:0, background:'rgba(4,30,66,0.55)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:400, backdropFilter:'blur(8px)' },
+  modal: { background:'#FFFFFF', border:'1px solid rgba(0,0,0,0.1)', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', width:'100%', maxWidth:500, animation:'slideUp 0.2s ease both', boxShadow:'0 -4px 30px rgba(0,0,0,0.15)' },
   modalTop: { display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 },
-  modalTitle: { fontFamily:"'Barlow Condensed',sans-serif", fontSize:22, fontWeight:700 },
-  modalSub: { fontSize:12, color:'#6B8FAD', marginTop:2 },
-  closeBtn: { background:'transparent', border:'none', color:'#6B8FAD', fontSize:22, cursor:'pointer', padding:4, lineHeight:1 },
-  sectionLabel: { fontFamily:"'Barlow Condensed',sans-serif", fontSize:11, fontWeight:700, color:'#6B8FAD', letterSpacing:2, textTransform:'uppercase', marginBottom:12 },
+  modalTitle: { fontFamily:"'Barlow Condensed',sans-serif", fontSize:22, fontWeight:700, color:'#041E42' },
+  modalSub: { fontSize:12, color:'#9CAAB8', marginTop:2 },
+  closeBtn: { background:'transparent', border:'none', color:'#9CAAB8', fontSize:22, cursor:'pointer', padding:4, lineHeight:1 },
+  sectionLabel: { fontFamily:"'Barlow Condensed',sans-serif", fontSize:11, fontWeight:700, color:'#9CAAB8', letterSpacing:2, textTransform:'uppercase', marginBottom:12 },
   teamGrid: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 },
-  teamBtn: { padding:'16px 8px', borderRadius:14, border:'2px solid', display:'flex', flexDirection:'column', alignItems:'center', cursor:'pointer', transition:'all 0.15s', position:'relative' },
+  teamBtn: { padding:'16px 8px', borderRadius:14, border:'2px solid', display:'flex', flexDirection:'column', alignItems:'center', cursor:'pointer', transition:'all 0.15s', position:'relative', background:'#F8F9FB' },
   popupLogo: { width:68, height:68, objectFit:'contain' },
-  tbdCircle: { width:68, height:68, borderRadius:'50%', background:'rgba(255,255,255,0.04)', border:'1px dashed rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, color:'#6B8FAD' },
+  tbdCircle: { width:68, height:68, borderRadius:'50%', background:'#F0F2F5', border:'1px dashed rgba(0,0,0,0.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, color:'#9CAAB8' },
   selCheck: { position:'absolute', top:8, right:8, width:22, height:22, background:'#1D9E75', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, color:'white', fontWeight:700 },
   gamesGrid: { display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 },
   gamesBtn: { padding:'14px 6px', borderRadius:12, border:'2px solid', display:'flex', flexDirection:'column', alignItems:'center', cursor:'pointer', transition:'all 0.15s' },

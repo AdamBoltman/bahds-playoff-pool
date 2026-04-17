@@ -208,10 +208,10 @@ export default function LeaderboardPage() {
                 { label: 'Conf. Finals', val: myBreakdown.r3, max: 60 },
                 { label: 'SCF', val: myBreakdown.r4, max: 40 },
               ].map(r => (
-                <div key={r.label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 10, textAlign: 'center' }}>
+                <div key={r.label} style={{ background: '#F8F9FB', borderRadius: 8, padding: 10, textAlign: 'center' }}>
                   <div style={{ fontSize: 10, color: '#6B8FAD', marginBottom: 6 }}>{r.label}</div>
-                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 700 }}>{r.val ?? '—'}</div>
-                  <div style={{ fontSize: 10, color: '#6B8FAD', marginTop: 2 }}>/ {r.max} max</div>
+                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 700, color: '#041E42' }}>{r.val ?? '—'}</div>
+                  <div style={{ fontSize: 10, color: '#9CAAB8', marginTop: 2 }}>/ {r.max} max</div>
                 </div>
               ))}
             </div>
@@ -228,7 +228,7 @@ function PickViewer({ player, picks, results, onClose }) {
       <div style={s.modal} onClick={e => e.stopPropagation()}>
         <div style={s.modalHeader}>
           <div>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 700 }}>{player.display_name}'s Bracket</div>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 700, color: '#041E42' }}>{player.display_name}'s Bracket</div>
             <div style={{ fontSize: 12, color: '#6B8FAD', marginTop: 2 }}>{player.total} pts total</div>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#A0B4CC', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
@@ -289,16 +289,16 @@ function Pts({ v }) {
 }
 
 const s = {
-  tableWrap: { background: '#0d2040', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' },
+  tableWrap: { background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     fontFamily: "'Barlow Condensed', sans-serif", fontSize: 11, fontWeight: 600,
     letterSpacing: 1.5, textTransform: 'uppercase', color: '#6B8FAD', textAlign: 'left',
     padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)',
   },
-  td: { padding: '14px 14px', fontSize: 14, borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'middle' },
-  youBadge: { background: '#C8102E', color: 'white', fontSize: 10, padding: '2px 7px', borderRadius: 10, marginLeft: 8, fontWeight: 600, verticalAlign: 'middle' },
-  lockedNote: { fontSize: 13, color: '#A0B4CC', marginBottom: 14, padding: '10px 14px', background: 'rgba(55,138,221,0.07)', border: '1px solid rgba(55,138,221,0.15)', borderRadius: 8 },
+  td: { padding: '14px 14px', fontSize: 14, borderBottom: '1px solid rgba(0,0,0,0.05)', verticalAlign: 'middle', color: '#041E42' },
+  youBadge: { background: '#C8102E', color: 'white', fontSize: 10, padding: '2px 8px', borderRadius: 10, marginLeft: 8, fontWeight: 700, verticalAlign: 'middle' },
+  lockedNote: { fontSize: 13, color: '#1A6BC4', marginBottom: 14, padding: '10px 14px', background: 'rgba(26,107,196,0.06)', border: '1px solid rgba(26,107,196,0.15)', borderRadius: 8 },
   roundHeader: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 13, fontWeight: 600, color: '#A0B4CC', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(2,15,33,0.85)',
@@ -309,5 +309,5 @@ const s = {
     background: '#051F3E', border: '1px solid rgba(255,255,255,0.15)',
     borderRadius: 16, padding: 24, width: '100%', maxWidth: 480,
   },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, color: '#041E42' },
 }

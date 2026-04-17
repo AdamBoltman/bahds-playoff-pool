@@ -2,15 +2,15 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
 
 const links = [
-  { to: '/', label: 'Home', icon: '⌂' },
-  { to: '/picks', label: 'My Picks', icon: '✎' },
-  { to: '/leaderboard', label: 'Standings', icon: '☆' },
-  { to: '/scoring', label: 'Scoring', icon: '◎' },
+  { to: '/', label: 'Home' },
+  { to: '/picks', label: 'My Picks' },
+  { to: '/leaderboard', label: 'Standings' },
+  { to: '/scoring', label: 'Scoring' },
 ]
 
 export default function NavBar() {
   const { isAdmin } = useAuth()
-  const allLinks = isAdmin ? [...links, { to: '/admin', label: 'Admin', icon: '⚙' }] : links
+  const allLinks = isAdmin ? [...links, { to: '/admin', label: 'Admin' }] : links
 
   return (
     <nav style={s.nav}>
@@ -18,9 +18,9 @@ export default function NavBar() {
         <NavLink key={l.to} to={l.to} end={l.to === '/'}
           style={({ isActive }) => ({
             ...s.link,
-            color: isActive ? 'white' : '#6B8FAD',
+            color: isActive ? '#C8102E' : '#6B7A8D',
             borderBottom: isActive ? '3px solid #C8102E' : '3px solid transparent',
-            background: isActive ? 'rgba(200,16,46,0.06)' : 'transparent',
+            fontWeight: isActive ? 700 : 600,
           })}>
           {l.label}
         </NavLink>
@@ -31,17 +31,19 @@ export default function NavBar() {
 
 const s = {
   nav: {
-    background: '#020e1f',
+    background: '#FFFFFF',
     display: 'flex',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-    overflowX: 'auto', padding: '0 4px',
+    borderBottom: '1px solid rgba(0,0,0,0.08)',
+    overflowX: 'auto',
+    padding: '0 8px',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
   link: {
-    padding: '13px 18px',
-    fontFamily: "'Barlow Condensed', sans-serif",
-    fontSize: 14, fontWeight: 700, letterSpacing: 1.2,
+    padding: '14px 16px',
+    fontFamily: "'Barlow Condensed',sans-serif",
+    fontSize: 14, letterSpacing: 1.2,
     textTransform: 'uppercase',
     whiteSpace: 'nowrap', textDecoration: 'none',
-    transition: 'color 0.15s, background 0.15s',
+    transition: 'color 0.15s',
   },
 }

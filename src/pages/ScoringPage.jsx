@@ -16,8 +16,8 @@ export default function ScoringPage() {
       <div className="section-label">How scoring works</div>
 
       <div style={s.intro}>
-        Every series has two independent picks: <strong style={{ color: 'white' }}>who wins</strong> and{' '}
-        <strong style={{ color: 'white' }}>how many games</strong>. Each earns points separately — you can
+        Every series has two independent picks: <strong style={{ color: '#041E42' }}>who wins</strong> and{' '}
+        <strong style={{ color: '#041E42' }}>how many games</strong>. Each earns points separately — you can
         get games points even if you picked the wrong winner.
       </div>
 
@@ -59,20 +59,20 @@ export default function ScoringPage() {
         <div style={s.exampleTitle}>You pick: Colorado in 6 games</div>
         <div style={s.exampleRows}>
           <div style={s.exRow}>
-            <span style={{ color: '#A0B4CC' }}>Colorado wins in 5 games</span>
-            <span style={{ color: '#1D9E75' }}>+5 pts (right team)</span>
+            <span style={{ color: '#6B7A8D' }}>Colorado wins in 5 games</span>
+            <span style={{ color: '#0F6E56' }}>+5 pts (right team)</span>
           </div>
           <div style={s.exRow}>
-            <span style={{ color: '#A0B4CC' }}>Colorado wins in 6 games</span>
-            <span style={{ color: '#1D9E75' }}>+10 pts (team + games)</span>
+            <span style={{ color: '#6B7A8D' }}>Colorado wins in 6 games</span>
+            <span style={{ color: '#0F6E56' }}>+10 pts (team + games)</span>
           </div>
           <div style={s.exRow}>
-            <span style={{ color: '#A0B4CC' }}>LA Kings win in 6 games</span>
-            <span style={{ color: '#1D9E75' }}>+5 pts (right games, wrong team)</span>
+            <span style={{ color: '#6B7A8D' }}>LA Kings win in 6 games</span>
+            <span style={{ color: '#0F6E56' }}>+5 pts (right games, wrong team)</span>
           </div>
           <div style={s.exRow}>
-            <span style={{ color: '#A0B4CC' }}>LA Kings win in 7 games</span>
-            <span style={{ color: '#6B8FAD' }}>0 pts</span>
+            <span style={{ color: '#6B7A8D' }}>LA Kings win in 7 games</span>
+            <span style={{ color: '#9CAAB8' }}>0 pts</span>
           </div>
         </div>
       </div>
@@ -88,7 +88,7 @@ export default function ScoringPage() {
         ].map((rule, i) => (
           <div key={i} style={s.ruleItem}>
             <div style={s.ruleDot} />
-            <span style={{ fontSize: 14, color: '#A0B4CC', lineHeight: 1.5 }}>{rule}</span>
+            <span style={{ fontSize: 14, color: '#6B7A8D', lineHeight: 1.5 }}>{rule}</span>
           </div>
         ))}
       </div>
@@ -98,25 +98,25 @@ export default function ScoringPage() {
 
 const s = {
   intro: {
-    background: '#051F3E', border: '1px solid rgba(255,255,255,0.08)',
+    background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.07)',
     borderRadius: 10, padding: '14px 16px',
-    fontSize: 14, color: '#A0B4CC', lineHeight: 1.6, marginBottom: 16,
+    fontSize: 14, color: '#6B7A8D', lineHeight: 1.6, marginBottom: 16,
   },
   roundRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   roundLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 17, fontWeight: 700 },
-  roundSub: { fontSize: 12, color: '#6B8FAD', marginTop: 3 },
-  ptsVal: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 700, color: '#FFD700' },
-  ptsMax: { fontSize: 11, color: '#6B8FAD', marginTop: 2 },
+  roundSub: { fontSize: 12, color: '#9CAAB8', marginTop: 3 },
+  ptsVal: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 700, color: '#D4A800' },
+  ptsMax: { fontSize: 11, color: '#9CAAB8', marginTop: 2 },
   rulesRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
   ruleChip: {
-    background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '10px 12px',
+    background: '#F8F9FB', borderRadius: 8, padding: '10px 12px',
   },
-  ruleLabel: { fontSize: 13, fontWeight: 500, color: 'white', marginBottom: 3 },
-  ruleSub: { fontSize: 11, color: '#6B8FAD', lineHeight: 1.4 },
+  ruleLabel: { fontSize: 13, fontWeight: 500, color: '#041E42', marginBottom: 3 },
+  ruleSub: { fontSize: 11, color: '#9CAAB8', lineHeight: 1.4 },
   totalRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700 },
-  totalVal: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 700, color: '#FFD700' },
-  totalBreak: { fontSize: 13, color: '#6B8FAD', marginTop: 6 },
+  totalVal: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 700, color: '#D4A800' },
+  totalBreak: { fontSize: 13, color: '#9CAAB8', marginTop: 6 },
   exampleTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, marginBottom: 12 },
   exampleRows: { display: 'flex', flexDirection: 'column', gap: 8 },
   exRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' },

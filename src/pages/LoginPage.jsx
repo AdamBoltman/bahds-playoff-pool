@@ -182,18 +182,18 @@ export default function LoginPage() {
 }
 
 const s = {
-  outer: { minHeight: 'calc(100vh - 58px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  card: { background: '#0a1628', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '40px 32px', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' },
+  outer: { minHeight: 'calc(100vh - 58px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: '#F2F4F7' },
+  card: { background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 20, padding: '40px 32px', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' },
   logoWrap: { marginBottom: 16 },
   puck: { width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', display: 'inline-block' },
-  appName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 4 },
-  title: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 600, color: '#A0B4CC', marginBottom: 4 },
-  subtitle: { fontSize: 13, color: '#6B8FAD', lineHeight: 1.5, marginBottom: 24 },
-  input: { width: '100%', padding: '11px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: 'white', fontSize: 15, marginBottom: 10, outline: 'none', display: 'block', textAlign: 'left' },
+  appName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: '#041E42', marginBottom: 4 },
+  title: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 600, color: '#6B7A8D', marginBottom: 4 },
+  subtitle: { fontSize: 13, color: '#9CAAB8', lineHeight: 1.5, marginBottom: 24 },
+  input: { width: '100%', padding: '11px 14px', background: '#F8F9FB', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, color: '#041E42', fontSize: 15, marginBottom: 10, outline: 'none', display: 'block', textAlign: 'left' },
   btn: { width: '100%', padding: '12px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 8, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   error: { color: '#FF8A9A', fontSize: 13, marginBottom: 10, textAlign: 'left', lineHeight: 1.4 },
-  links: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 },
-  link: { background: 'transparent', border: 'none', color: '#6B8FAD', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 },
+  links: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16, },
+  link: { background: 'transparent', border: 'none', color: '#1A6BC4', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 },
   checkmark: { width: 56, height: 56, background: 'rgba(29,158,117,0.2)', border: '1px solid #1D9E75', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#1D9E75' },
-  note: { marginTop: 24, fontSize: 11, color: '#6B8FAD', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16 },
+  note: { marginTop: 24, fontSize: 11, color: '#9CAAB8', lineHeight: 1.5, borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 16 },
 }

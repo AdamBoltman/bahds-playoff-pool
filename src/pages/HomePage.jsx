@@ -145,13 +145,13 @@ export default function HomePage() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700 }}>{away.abbrev || '—'}</div>
-                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: '#FFD700' }}>{away.score ?? ''}</div>}
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: '#041E42' }}>{away.abbrev || '—'}</div>
+                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: '#C8102E' }}>{away.score ?? ''}</div>}
                     </div>
                     <div style={{ fontSize: 11, color: '#6B8FAD' }}>@</div>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700 }}>{home.abbrev || '—'}</div>
-                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: '#FFD700' }}>{home.score ?? ''}</div>}
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: '#041E42' }}>{home.abbrev || '—'}</div>
+                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: '#C8102E' }}>{home.score ?? ''}</div>}
                     </div>
                   </div>
                 </div>
@@ -163,7 +163,7 @@ export default function HomePage() {
 
       {/* Stat leaders */}
       <div className="section-label" style={{ marginTop: 24 }}>
-        {leaders?.isPlayoffs ? 'Playoff Leaders' : 'Regular Season Leaders'}
+        {leaders?.isPlayoffs ? 'Playoff leaders' : 'Regular season leaders'}
       </div>
       {statsLoading ? (
         <div style={s.statGrid}>
@@ -177,10 +177,10 @@ export default function HomePage() {
         </div>
       ) : (
         <div style={s.statGrid} className="stagger">
-          <StatCard label="Goals leader" value={leaders?.goals?.lastName || '—'} sub={leaders?.goals ? `${leaders.goals.teamAbbrevs} · ${leaders.goals.value} G` : 'Loading...'} accent="#C8102E" icon="🥅" />
-          <StatCard label="Points leader" value={leaders?.points?.lastName || '—'} sub={leaders?.points ? `${leaders.points.teamAbbrevs} · ${leaders.points.value} PTS` : 'Loading...'} accent="#FFD700" icon="⭐" />
-          <StatCard label="Assists leader" value={leaders?.assists?.lastName || '—'} sub={leaders?.assists ? `${leaders.assists.teamAbbrevs} · ${leaders.assists.value} A` : 'Loading...'} accent="#378ADD" icon="🍎" />
-          <StatCard label="GAA leader" value={goalie?.lastName || '—'} sub={goalie ? `${goalie.teamAbbrevs} · ${Number(goalie.value||0).toFixed(2)} GAA` : 'Loading...'} accent="#1D9E75" icon="🥋" />
+          <StatCard label="Goals leader" value={leaders?.goals?.lastName || '—'} sub={leaders?.goals ? `${leaders.goals.teamAbbrevs} · ${leaders.goals.value} G` : 'Loading...'} accent="#C8102E" />
+          <StatCard label="Points leader" value={leaders?.points?.lastName || '—'} sub={leaders?.points ? `${leaders.points.teamAbbrevs} · ${leaders.points.value} PTS` : 'Loading...'} accent="#1A6BC4" />
+          <StatCard label="Assists leader" value={leaders?.assists?.lastName || '—'} sub={leaders?.assists ? `${leaders.assists.teamAbbrevs} · ${leaders.assists.value} A` : 'Loading...'} accent="#1A6BC4" />
+          <StatCard label="GAA leader" value={goalie?.lastName || '—'} sub={goalie ? `${goalie.teamAbbrevs} · ${Number(goalie.value||0).toFixed(2)} GAA` : 'Loading...'} accent="#1D9E75" />
         </div>
       )}
 
@@ -215,66 +215,69 @@ export default function HomePage() {
   )
 }
 
-function StatCard({ label, value, sub, accent, icon }) {
+function StatCard({ label, value, sub, accent }) {
   return (
     <div className="card" style={{ borderLeft: `3px solid ${accent}`, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 20, opacity: 0.15 }}>{icon}</div>
-      <div style={{ fontSize: 11, color: '#6B8FAD', marginBottom: 6, letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: 'white', lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 12, color: '#A0B4CC', marginTop: 4 }}>{sub}</div>
+      <div style={{ fontSize: 11, color: '#9CAAB8', marginBottom: 6, letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: '#041E42', lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 12, color: '#6B7A8D', marginTop: 4 }}>{sub}</div>
     </div>
   )
 }
 
 const s = {
   commCard: {
-    background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.18)',
-    borderRadius: 14, padding: '14px 16px', marginBottom: 20,
+    background: '#FFF8E1', border: '1px solid rgba(212,168,0,0.25)',
+    borderRadius: 12, padding: '14px 16px', marginBottom: 20,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
   commHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  commLabel: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, color: '#FFD700', letterSpacing: 2, textTransform: 'uppercase' },
-  commText: { fontSize: 14, color: 'white', lineHeight: 1.6 },
-  editBtn: { background: 'transparent', border: '1px solid rgba(255,215,0,0.25)', borderRadius: 5, padding: '3px 10px', fontSize: 12, color: '#FFD700', cursor: 'pointer' },
-  noteInput: { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: 'white', fontSize: 14, padding: '10px 12px', resize: 'vertical', fontFamily: "'Barlow',sans-serif", outline: 'none' },
+  commLabel: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, color: '#B8900A', letterSpacing: 2, textTransform: 'uppercase' },
+  commText: { fontSize: 14, color: '#041E42', lineHeight: 1.6 },
+  editBtn: { background: 'transparent', border: '1px solid rgba(184,144,10,0.3)', borderRadius: 5, padding: '3px 10px', fontSize: 12, color: '#B8900A', cursor: 'pointer' },
+  noteInput: { width: '100%', background: 'white', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, color: '#041E42', fontSize: 14, padding: '10px 12px', resize: 'vertical', fontFamily: "'Barlow',sans-serif", outline: 'none' },
   saveNoteBtn: { padding: '7px 18px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  cancelBtn: { padding: '7px 18px', background: 'transparent', color: '#A0B4CC', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 7, fontSize: 13, cursor: 'pointer' },
+  cancelBtn: { padding: '7px 18px', background: 'transparent', color: '#6B7A8D', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 7, fontSize: 13, cursor: 'pointer' },
   hero: {
-    background: 'linear-gradient(135deg, #0a1628 0%, #112640 50%, #0d1f35 100%)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'linear-gradient(135deg, #041E42 0%, #0a2d52 100%)',
+    border: 'none',
     borderRadius: 16, padding: '22px 24px',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     gap: 16, flexWrap: 'wrap', marginBottom: 24,
+    boxShadow: '0 4px 20px rgba(4,30,66,0.2)',
     position: 'relative', overflow: 'hidden',
   },
   emptyHero: {
-    background: 'linear-gradient(135deg, #0a1628, #112640)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'linear-gradient(135deg, #041E42, #0a2d52)',
+    border: 'none',
     borderRadius: 16, padding: '32px 24px',
     textAlign: 'center', marginBottom: 24,
+    boxShadow: '0 4px 20px rgba(4,30,66,0.2)',
   },
-  heroSub: { fontSize: 11, color: '#6B8FAD', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
+  heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
   heroName: {
     fontFamily: "'Barlow Condensed',sans-serif",
     fontSize: 42, fontWeight: 700, color: '#FFD700', lineHeight: 1,
     textShadow: '0 0 30px rgba(255,215,0,0.3)',
   },
   heroRight: { textAlign: 'right' },
-  heroRank: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 32, fontWeight: 700 },
-  heroPts: { fontSize: 13, color: '#6B8FAD', marginTop: 4 },
-  gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8 },
+  heroRank: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 32, fontWeight: 700, color: 'white' },
+  heroPts: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
+  gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8, },
   statGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 },
   newsItem: {
-    background: 'var(--card-bg)', border: '1px solid var(--border)',
+    background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.07)',
     borderRadius: 12, padding: '14px 16px',
     display: 'flex', gap: 12, alignItems: 'flex-start',
     textDecoration: 'none', color: 'inherit',
-    transition: 'border-color 0.15s, transform 0.1s',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    transition: 'box-shadow 0.15s',
   },
   newsDot: { width: 7, height: 7, background: '#C8102E', borderRadius: '50%', marginTop: 6, flexShrink: 0 },
   newsSrc: { fontSize: 10, color: '#C8102E', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
-  newsTitle: { fontSize: 14, color: 'white', lineHeight: 1.45 },
-  newsMeta: { fontSize: 12, color: '#6B8FAD', marginTop: 4 },
-  newsArrow: { fontSize: 18, color: '#6B8FAD', marginLeft: 4, flexShrink: 0 },
+  newsTitle: { fontSize: 14, color: '#041E42', lineHeight: 1.45 },
+  newsMeta: { fontSize: 12, color: '#9CAAB8', marginTop: 4 },
+  newsArrow: { fontSize: 18, color: '#9CAAB8', marginLeft: 4, flexShrink: 0 },
 }
 
 const FALLBACK_NEWS = [
