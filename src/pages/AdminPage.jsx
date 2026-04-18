@@ -366,10 +366,17 @@ function UserRow({ user, onSave, s }) {
   const [saving, setSaving] = useState(false)
   async function save() {
     setSaving(true)
-    await Promise.all([
-      supabase.from('profiles').update({ display_name: name }).eq('user_id', user.user_id),
-      supabase.from('scores').update({ display_name: name }).eq('user_id', user.user_id),
-    ])
+    // Update profiles table
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: name })
+      .eq('user_id', user.user_id)
+    if (error) { console.error('Profile save error:', error); setSaving(false); return }
+    // Upsert scores row — creates it if it doesn't exist yet
+    await supabase.from('scores').upsert(
+      { user_id: user.user_id, display_name: name, r1: 0, r2: 0, r3: 0, r4: 0, total: 0 },
+      { onConflict: 'user_id' }
+    )
     setSaving(false)
     onSave()
   }
