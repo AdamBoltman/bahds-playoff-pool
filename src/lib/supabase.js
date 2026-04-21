@@ -7,7 +7,7 @@ export const supabase = createClient(
 
 export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL
 
-export const PICKS_DEADLINE = new Date('2026-04-20T19:00:00Z') // noon PT = 19:00 UTC
+export const PICKS_DEADLINE = new Date('2026-04-22T19:00:00Z') // noon PT = 19:00 UTC
 
 export const ROUND_POINTS = { 1: 5, 2: 10, 3: 15, 4: 20 }
 
