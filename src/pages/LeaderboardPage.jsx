@@ -14,16 +14,18 @@ export default function LeaderboardPage() {
   const [allPicks, setAllPicks] = useState([])
   const [results, setResults] = useState({})
   const [fieldStats, setFieldStats] = useState({})
+  const [overrides, setOverrides] = useState({})  // FIX: added overrides state
   const locked = deadlinePassed()
 
   useEffect(() => { load() }, [])
 
   async function load() {
-    const [scoresRes, picksRes, resultsRes, profilesRes] = await Promise.all([
+    const [scoresRes, picksRes, resultsRes, profilesRes, overridesRes] = await Promise.all([
       supabase.from('scores').select('user_id, display_name, r1, r2, r3, r4, total').order('total', { ascending: false }),
       supabase.from('picks').select('*'),
       supabase.from('results').select('*'),
       supabase.from('profiles').select('user_id, display_name, email'),
+      supabase.from('matchup_overrides').select('*'),  // FIX: fetch overrides
     ])
 
     const scores = scoresRes.data || []
@@ -56,6 +58,11 @@ export default function LeaderboardPage() {
     const resultsMap = {}
     resultsData.forEach(r => { resultsMap[r.matchup_id] = r })
     setResults(resultsMap)
+
+    // FIX: build and store overrides map
+    const overridesMap = {}
+    ;(overridesRes.data || []).forEach(o => { overridesMap[o.matchup_id] = o })
+    setOverrides(overridesMap)
 
     const me = scoreMap[user?.id] || (profileMap[user?.id] ? {
       user_id: user?.id,
@@ -154,6 +161,7 @@ export default function LeaderboardPage() {
           player={selectedUser}
           picks={getPicksForUser(selectedUser.user_id)}
           results={results}
+          overrides={overrides}  // FIX: pass overrides down
           onClose={() => setSelectedUser(null)}
         />
       )}
@@ -247,22 +255,26 @@ export default function LeaderboardPage() {
   )
 }
 
-function PickViewer({ player, picks, results, onClose }) {
+function PickViewer({ player, picks, results, overrides, onClose }) {
   const NHL_LOGO = (abbrev) => `https://assets.nhle.com/logos/nhl/svg/${abbrev}_light.svg`
 
-  // Resolve what team is in a slot based on picks cascading
   const SOURCES = {
     e5: { t1: 'e3', t2: 'e2' }, e6: { t1: 'e1', t2: 'e4' }, e7: { t1: 'e5', t2: 'e6' },
     w5: { t1: 'w1', t2: 'w2' }, w6: { t1: 'w3', t2: 'w4' }, w7: { t1: 'w5', t2: 'w6' },
     f1: { t1: 'w7', t2: 'e7' },
   }
 
+  // FIX: resolveTeam now uses overrides to get correct team abbreviations
   function resolveTeam(matchupId, slot) {
     const src = SOURCES[matchupId]
     if (!src) {
       const round = ROUNDS.find(r => r.matchups.find(m => m.id === matchupId))
-      const m = round?.matchups.find(m => m.id === matchupId)
-      const a = slot === 't1' ? m?.a1 : m?.a2
+      const base = round?.matchups.find(m => m.id === matchupId)
+      if (!base) return null
+      const ov = overrides[matchupId]
+      const a1 = ov?.a1 || base.a1
+      const a2 = ov?.a2 || base.a2
+      const a = slot === 't1' ? a1 : a2
       return (!a || a === 'TBD' || a === '???') ? null : a
     }
     const srcId = src[slot]
@@ -275,7 +287,16 @@ function PickViewer({ player, picks, results, onClose }) {
     const round = ROUNDS.find(r => r.matchups.find(m => m.id === id))
     const base = round?.matchups.find(m => m.id === id)
     if (!base) return null
-    if (!SOURCES[id]) return base
+    if (!SOURCES[id]) {
+      const ov = overrides[id]
+      return {
+        ...base,
+        a1: ov?.a1 || base.a1,
+        a2: ov?.a2 || base.a2,
+        t1: ov?.t1 || base.t1,
+        t2: ov?.t2 || base.t2,
+      }
+    }
     const a1 = resolveTeam(id, 't1')
     const a2 = resolveTeam(id, 't2')
     return { ...base, a1: a1||null, a2: a2||null }

@@ -143,6 +143,7 @@ export default function AdminPage() {
     flash('Matchups saved! Reload the app to see changes.')
   }
 
+  // FIX: recalcScores now fetches overrides and applies them before scoring
   async function recalcScores() {
     setRecalcing(true)
     const { data: allPicks } = await supabase.from('picks').select('*')
@@ -152,9 +153,11 @@ export default function AdminPage() {
 
     if (!allPicks || !allResults) { setRecalcing(false); return }
 
+    // Build overrides map
     const overridesMap = {}
     ;(allOverrides || []).forEach(o => { overridesMap[o.matchup_id] = o })
 
+    // Merge overrides into matchups so scoring uses correct team abbreviations
     const resolvedMatchups = ALL_MATCHUPS.map(m => ({
       ...m,
       a1: overridesMap[m.id]?.a1 || m.a1,
@@ -309,7 +312,7 @@ export default function AdminPage() {
         </>
       )}
 
-      {/* MANAGE USERS TAB */}
+      {/* LIVE SCORES TAB */}
       {activeTab === 'scores' && (
         <>
           <div className="section-label">Live Series Scores</div>
@@ -376,13 +379,11 @@ function UserRow({ user, onSave, s }) {
   const [saving, setSaving] = useState(false)
   async function save() {
     setSaving(true)
-    // Update profiles table
     const { error } = await supabase
       .from('profiles')
       .update({ display_name: name })
       .eq('user_id', user.user_id)
     if (error) { console.error('Profile save error:', error); setSaving(false); return }
-    // Upsert scores row — creates it if it doesn't exist yet
     await supabase.from('scores').upsert(
       { user_id: user.user_id, display_name: name, r1: 0, r2: 0, r3: 0, r4: 0, total: 0 },
       { onConflict: 'user_id' }
