@@ -188,8 +188,8 @@ export default function AdminPage() {
 
   if (!isAdmin) return null
 
-  const tabs = ['matchups', 'results', 'scores', 'users']
-  const tabLabels = { matchups: 'Edit Matchups', results: 'Enter Results', scores: 'Live Scores', users: 'Manage Users' }
+  const tabs = ['matchups', 'results', 'scores', 'manual', 'users']
+  const tabLabels = { matchups: 'Edit Matchups', results: 'Enter Results', scores: 'Live Scores', manual: '✏️ Edit Scores', users: 'Manage Users' }
 
   return (
     <div className="page-wrap fade-up">
@@ -354,6 +354,10 @@ export default function AdminPage() {
         </>
       )}
 
+      {activeTab === 'manual' && (
+        <ManualScores s={s} flash={flash} />
+      )}
+
       {activeTab === 'users' && (
         <>
           <div className="section-label">Pool Members</div>
@@ -371,6 +375,94 @@ export default function AdminPage() {
         </>
       )}
     </div>
+  )
+}
+
+function ManualScores({ s, flash }) {
+  const [scores, setScores] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(null)
+
+  useEffect(() => { loadScores() }, [])
+
+  async function loadScores() {
+    const { data } = await supabase
+      .from('scores')
+      .select('user_id, display_name, r1, r2, r3, r4, total')
+      .order('display_name')
+    if (data) setScores(data.map(r => ({ ...r })))
+    setLoading(false)
+  }
+
+  function update(userId, field, value) {
+    setScores(prev => prev.map(row => {
+      if (row.user_id !== userId) return row
+      const updated = { ...row, [field]: Number(value) || 0 }
+      updated.total = (updated.r1 || 0) + (updated.r2 || 0) + (updated.r3 || 0) + (updated.r4 || 0)
+      return updated
+    }))
+  }
+
+  async function saveRow(row) {
+    setSaving(row.user_id)
+    await supabase.from('scores').upsert(
+      { user_id: row.user_id, display_name: row.display_name, r1: row.r1, r2: row.r2, r3: row.r3, r4: row.r4, total: row.total },
+      { onConflict: 'user_id' }
+    )
+    setSaving(null)
+    flash(`✓ Saved ${row.display_name}: ${row.total} pts`)
+  }
+
+  if (loading) return <div style={{ color: '#9CAAB8', padding: 20 }}>Loading...</div>
+
+  return (
+    <>
+      <div className="section-label">Manually Edit Scores</div>
+      <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 16 }}>
+        Edit each player's round scores directly. Total updates automatically. Hit Save per row.
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.1)' }}>
+              {['Player', 'R1', 'R2', 'CF', 'Final', 'Total', ''].map(h => (
+                <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#6B7A8D' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {scores.map(row => (
+              <tr key={row.user_id} style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                <td style={{ padding: '10px 10px', fontWeight: 600, color: '#041E42', minWidth: 100 }}>{row.display_name}</td>
+                {['r1','r2','r3','r4'].map(field => (
+                  <td key={field} style={{ padding: '6px 6px' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      value={row[field] || 0}
+                      onChange={e => update(row.user_id, field, e.target.value)}
+                      style={{ ...s.input, width: 60, textAlign: 'center' }}
+                    />
+                  </td>
+                ))}
+                <td style={{ padding: '6px 10px', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, color: '#FFD700' }}>
+                  {row.total}
+                </td>
+                <td style={{ padding: '6px 6px' }}>
+                  <button
+                    style={{ ...s.btn, padding: '6px 14px', fontSize: 12, width: 'auto', background: '#0F6E56' }}
+                    onClick={() => saveRow(row)}
+                    disabled={saving === row.user_id}
+                  >
+                    {saving === row.user_id ? '...' : 'Save'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   )
 }
 
