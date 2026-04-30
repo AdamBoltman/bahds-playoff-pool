@@ -24,10 +24,10 @@ export function calculateScore(picks, results, matchups) {
     }
 
     // Games pick — independent of team
-    if (pick.games && pick.games === result.games) {
-      total += pts
-      breakdown[m.round] = (breakdown[m.round] || 0) + pts
-    }
+    if (pickedAbbr === result.winner && pick.games && pick.games === result.games) {
+  total += pts
+  breakdown[m.round] = (breakdown[m.round] || 0) + pts
+}
   }
 
   return { total, breakdown }
