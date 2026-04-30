@@ -148,8 +148,18 @@ export default function AdminPage() {
     const { data: allPicks } = await supabase.from('picks').select('*')
     const { data: allResults } = await supabase.from('results').select('*')
     const { data: allProfiles } = await supabase.from('profiles').select('*')
+    const { data: allOverrides } = await supabase.from('matchup_overrides').select('*')
 
     if (!allPicks || !allResults) { setRecalcing(false); return }
+
+    const overridesMap = {}
+    ;(allOverrides || []).forEach(o => { overridesMap[o.matchup_id] = o })
+
+    const resolvedMatchups = ALL_MATCHUPS.map(m => ({
+      ...m,
+      a1: overridesMap[m.id]?.a1 || m.a1,
+      a2: overridesMap[m.id]?.a2 || m.a2,
+    }))
 
     const resultsMap = {}
     allResults.forEach(r => { resultsMap[r.matchup_id] = r })
@@ -162,7 +172,7 @@ export default function AdminPage() {
 
     const scoreRows = Object.entries(byUser).map(([user_id, userPicks]) => {
       const profile = allProfiles?.find(p => p.user_id === user_id)
-      const { total, breakdown } = calculateScore(userPicks, resultsMap, ALL_MATCHUPS)
+      const { total, breakdown } = calculateScore(userPicks, resultsMap, resolvedMatchups)
       return { user_id, display_name: profile?.display_name || 'Player', r1: breakdown[1] || 0, r2: breakdown[2] || 0, r3: breakdown[3] || 0, r4: breakdown[4] || 0, total }
     })
 
