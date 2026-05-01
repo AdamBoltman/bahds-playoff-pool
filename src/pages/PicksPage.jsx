@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 const isLocked = () => new Date() > PICKS_DEADLINE
 const NHL_LOGO = (abbrev) => `https://assets.nhle.com/logos/nhl/svg/${abbrev}_light.svg`
 
-// Card dimensions — slightly larger logos
+// Card dimensions
 const CW = 84
 const CH = 60
 const GAP = 6
@@ -22,13 +22,16 @@ const SOURCES = {
   f1: { t1: 'w7', t2: 'e7' },
 }
 
+// FIXED: East R1 order now matches actual bracket seeding top-to-bottom
+// e3 (BUF/BOS) top, e2 (TBL/MTL) second, e1 (CAR/OTT) third, e4 (PIT/PHI) bottom
+// This matches SOURCES: e5 = e3+e2 (top half), e6 = e1+e4 (bottom half)
 const WEST_COLS = [
   { round: 1, ids: ['w1','w2','w3','w4'], pts: 5  },
   { round: 2, ids: ['w5','w6'],           pts: 10 },
-  { round: 3, ids: ['w7'],               pts: 15 },
+  { round: 3, ids: ['w7'],                pts: 15 },
 ]
 const EAST_COLS = [
-  { round: 3, ids: ['e7'],               pts: 15 },
+  { round: 3, ids: ['e7'],                pts: 15 },
   { round: 2, ids: ['e5','e6'],           pts: 10 },
   { round: 1, ids: ['e3','e2','e1','e4'], pts: 5  },
 ]
@@ -107,7 +110,12 @@ export default function PicksPage() {
       const a = slot === 't1' ? m?.a1 : m?.a2
       return (!a || a === 'TBD' || a === '???') ? null : a
     }
+    // For higher rounds: follow the actual results if available, else follow picks
     const srcId = sources[slot]
+    // Check if the source series has a result
+    const srcResult = seriesScores[srcId]
+    if (srcResult?.winner) return srcResult.winner
+    // Otherwise follow the user's pick for that series
     const srcPick = picks[srcId]
     if (!srcPick?.team) return null
     return resolveTeamAbbrev(srcId, srcPick.team)
@@ -154,16 +162,23 @@ export default function PicksPage() {
     setTimeout(() => setSaved(false), 4000)
   }
 
-  const totalPickable = 15
-  const picksMade = Object.keys(picks).filter(id => picks[id]?.team && picks[id]?.games).length
+  // Count only future round pickable slots (R2, R3, Final = 7 matchups)
+  const allPickableIds = ['e5','e6','e7','w5','w6','w7','f1','e1','e2','e3','e4','w1','w2','w3','w4']
+  const picksMade = allPickableIds.filter(id => picks[id]?.team && picks[id]?.games).length
+  const totalPickable = allPickableIds.length
+
+  // Format deadline for display
+  const deadlineDisplay = PICKS_DEADLINE.toLocaleString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: 'America/Los_Angeles'
+  })
 
   return (
     <div style={{ paddingBottom: 48 }}>
       {locked ? (
-        <div style={s.lockedBanner}>🔒 Picks locked — deadline passed Sunday noon PT.</div>
+        <div style={s.lockedBanner}>🔒 Picks locked — deadline passed.</div>
       ) : (
         <div style={s.openBanner}>
-          <span>Lock by <strong>Sunday April 20, noon PT</strong></span>
+          <span>Lock by <strong>{deadlineDisplay}</strong></span>
           <span style={{ color: '#5DCAA5', fontWeight: 700 }}>{picksMade}/{totalPickable} picks</span>
         </div>
       )}
@@ -186,7 +201,7 @@ export default function PicksPage() {
             onClick={submitBracket} disabled={saving || picksMade === 0}>
             {saving ? <span className="spinner" /> : `Submit Bracket  (${picksMade}/${totalPickable})`}
           </button>
-          {saved && <div style={s.savedMsg}>✓ Bracket saved! Update anytime until Sunday noon PT.</div>}
+          {saved && <div style={s.savedMsg}>✓ Bracket saved! Update anytime before the deadline.</div>}
         </div>
       )}
 
@@ -231,7 +246,6 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
   const connActive = 'rgba(200,16,46,0.4)'
   const LABEL_Y = 20
 
-  // Check if a pick flows through a connector (for active line color)
   function hasPickFlowing(fromId) {
     return !!getPickedAbbrev(fromId)
   }
@@ -252,7 +266,6 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
         `}</style>
       </defs>
 
-      {/* Labels */}
       <text x={wX[0] + CW/2} y={LABEL_Y} textAnchor="middle" className="conf-lbl">WEST</text>
       <text x={eX[2] + CW/2} y={LABEL_Y} textAnchor="middle" className="conf-lbl">EAST</text>
       <text x={FINAL_X + CW/2} y={LABEL_Y} textAnchor="middle" className="final-lbl">🏆 FINAL</text>
@@ -268,7 +281,7 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
         </text>
       ))}
 
-      {/* West connectors */}
+      {/* West R1→R2 connectors: w1+w2→w5, w3+w4→w6 */}
       {[0,1,2,3].map(i => {
         const srcCy = r1Centers[i], destCy = r2Centers[Math.floor(i/2)]
         const srcX = wX[0]+CW, destX = wX[1], midX = srcX + RGAP/2
@@ -280,6 +293,7 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
           <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={c} strokeWidth={active?2:1.5}/>
         </g>
       })}
+      {/* West R2→R3 connectors */}
       {[0,1].map(i => {
         const srcCy = r2Centers[i], destCy = r3Centers[0]
         const srcX = wX[1]+CW, destX = wX[2], midX = srcX + RGAP/2
@@ -291,13 +305,15 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
           <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={c} strokeWidth={active?2:1.5}/>
         </g>
       })}
+      {/* West CF→Final */}
       {(() => {
         const active = hasPickFlowing('w7')
         const c = active ? connActive : connColor
         return <line x1={wX[2]+CW} y1={r3Centers[0]} x2={FINAL_X} y2={r3Centers[0]} stroke={c} strokeWidth={active?2:1.5}/>
       })()}
 
-      {/* East connectors */}
+      {/* East R1→R2 connectors: e3+e2→e5 (top), e1+e4→e6 (bottom) */}
+      {/* EAST_COLS[2].ids = ['e3','e2','e1','e4'] — positions 0,1 feed e5; positions 2,3 feed e6 */}
       {[0,1,2,3].map(i => {
         const srcCy = r1Centers[i], destCy = r2Centers[Math.floor(i/2)]
         const srcX = eX[2], destX = eX[1]+CW, midX = srcX - RGAP/2
@@ -309,6 +325,7 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
           <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={c} strokeWidth={active?2:1.5}/>
         </g>
       })}
+      {/* East R2→R3 connectors */}
       {[0,1].map(i => {
         const srcCy = r2Centers[i], destCy = r3Centers[0]
         const srcX = eX[1], destX = eX[0]+CW, midX = srcX - RGAP/2
@@ -320,6 +337,7 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
           <line x1={midX} y1={destCy} x2={destX} y2={destCy} stroke={c} strokeWidth={active?2:1.5}/>
         </g>
       })}
+      {/* East CF→Final */}
       {(() => {
         const active = hasPickFlowing('e7')
         const c = active ? connActive : connColor
@@ -346,7 +364,6 @@ function Bracket({ westCols, eastCols, resolveMatchup, picks, getPickedAbbrev, o
         ))
       )}
 
-      {/* Final card */}
       <FinalCardSVG x={FINAL_X} cy={r3Centers[0]}
         resolveMatchup={resolveMatchup} picks={picks}
         getPickedAbbrev={getPickedAbbrev} onTap={onTap} locked={locked}
@@ -366,7 +383,6 @@ function MatchupCardSVG({ id, x, cy, resolveMatchup, picks, getPickedAbbrev, onT
   const canTap = !locked && !bothTBD
   const hasResult = seriesResult?.winner && seriesResult?.games
 
-  // Build series score label
   let scoreLabel = null
   let scoreLabelClass = 'series-score'
   if (hasResult) {
@@ -385,19 +401,15 @@ function MatchupCardSVG({ id, x, cy, resolveMatchup, picks, getPickedAbbrev, onT
         isEliminated={hasResult && seriesResult.winner !== m.a1}
         isWinner={hasResult && seriesResult.winner === m.a1}
         games={pickedAbbrev === m.a1 ? pick?.games : null} />
-
-      {/* Series score between the two cards */}
       <text x={x + CW/2} y={y + CH + GAP/2 + 3} textAnchor="middle" className={scoreLabelClass}>
         {scoreLabel || 'vs'}
       </text>
-
       <TeamCardSVG x={x} y={y + CH + GAP} abbrev={m.a2}
         isPicked={pickedAbbrev === m.a2}
         isLoser={!!pickedAbbrev && pickedAbbrev !== m.a2}
         isEliminated={hasResult && seriesResult.winner !== m.a2}
         isWinner={hasResult && seriesResult.winner === m.a2}
         games={pickedAbbrev === m.a2 ? pick?.games : null} />
-
       {!pickedAbbrev && canTap && (
         <text x={x + CW/2} y={y + matchupH + 11} textAnchor="middle" className="tap-hint">tap to pick</text>
       )}
@@ -419,7 +431,6 @@ function TeamCardSVG({ x, y, abbrev, isPicked, isLoser, isEliminated, isWinner, 
     <g opacity={opacity}>
       <rect x={x} y={y} width={CW} height={CH} rx="8"
         fill={fill} stroke={stroke} strokeWidth={strokeW} />
-
       {isTBD ? (
         <text x={x+CW/2} y={y+CH/2+6} textAnchor="middle" className="tbd-lbl">?</text>
       ) : (
@@ -467,26 +478,19 @@ function FinalCardSVG({ x, cy, resolveMatchup, picks, getPickedAbbrev, onTap, lo
 
   return (
     <g style={{ cursor: canTap ? 'pointer' : 'default' }} onClick={() => canTap && onTap('f1')}>
-      {/* Championship border if champion picked */}
       {pickedAbbrev && (
         <rect x={cardX-2} y={y+14} width={cardW+4} height={matchupH+2} rx="12"
           fill="none" stroke="rgba(255,215,0,0.2)" strokeWidth="2"/>
       )}
-
-      {/* "Stanley Cup Champion" label */}
       {pickedAbbrev && (
-        <text x={x+CW/2} y={y+12} textAnchor="middle" className="champ-lbl">
-          My Champion
-        </text>
+        <text x={x+CW/2} y={y+12} textAnchor="middle" className="champ-lbl">My Champion</text>
       )}
-
       <TeamCardSVG x={x} y={y+22} abbrev={m.a1}
         isPicked={pickedAbbrev === m.a1}
         isLoser={!!pickedAbbrev && pickedAbbrev !== m.a1}
         isEliminated={hasResult && seriesResult.winner !== m.a1}
         isWinner={hasResult && seriesResult.winner === m.a1}
         games={pickedAbbrev === m.a1 ? pick?.games : null} />
-
       {hasResult ? (
         <text x={x+CW/2} y={y+22+CH+GAP/2+4} textAnchor="middle" className="series-final">
           {`${seriesResult.winner} in ${seriesResult.games}`}
@@ -494,7 +498,6 @@ function FinalCardSVG({ x, cy, resolveMatchup, picks, getPickedAbbrev, onTap, lo
       ) : (
         <text x={x+CW/2} y={y+22+CH+GAP/2+4} textAnchor="middle" className="series-score">vs</text>
       )}
-
       <TeamCardSVG x={x} y={y+22+CH+GAP+12} abbrev={m.a2}
         isPicked={pickedAbbrev === m.a2}
         isLoser={!!pickedAbbrev && pickedAbbrev !== m.a2}
@@ -520,7 +523,6 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
           </div>
           <button onClick={onClose} style={s.closeBtn}>✕</button>
         </div>
-
         <div style={s.sectionLabel}>Who wins?</div>
         <div style={s.teamGrid}>
           {[{slot:'t1', abbrev:m.a1, name:m.t1}, {slot:'t2', abbrev:m.a2, name:m.t2}].map(({slot, abbrev, name}) => {
@@ -551,7 +553,6 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
             )
           })}
         </div>
-
         <div style={{ ...s.sectionLabel, marginTop:20 }}>How many games?</div>
         <div style={s.gamesGrid}>
           {[4,5,6,7].map(g => (
@@ -569,7 +570,6 @@ function PickPopup({ m, matchupId, selectedTeam, selectedGames, onTeam, onGames,
             </button>
           ))}
         </div>
-
         <button style={{ ...s.confirmBtn, opacity: canConfirm ? 1 : 0.35, marginTop:20 }}
           onClick={canConfirm ? onConfirm : undefined} disabled={!canConfirm}>
           {canConfirm ? '✓  Confirm Pick' : 'Pick a team and series length'}
