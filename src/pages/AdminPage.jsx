@@ -188,8 +188,8 @@ export default function AdminPage() {
 
   if (!isAdmin) return null
 
-  const tabs = ['matchups', 'results', 'scores', 'manual', 'users']
-  const tabLabels = { matchups: 'Edit Matchups', results: 'Enter Results', scores: 'Live Scores', manual: '✏️ Edit Scores', users: 'Manage Users' }
+  const tabs = ['matchups', 'results', 'scores', 'manual', 'reset', 'users']
+  const tabLabels = { matchups: 'Edit Matchups', results: 'Enter Results', scores: 'Live Scores', manual: '✏️ Edit Scores', reset: '🔄 Reset Picks', users: 'Manage Users' }
 
   return (
     <div className="page-wrap fade-up">
@@ -358,6 +358,10 @@ export default function AdminPage() {
         <ManualScores s={s} flash={flash} />
       )}
 
+      {activeTab === 'reset' && (
+        <ResetPicks s={s} flash={flash} />
+      )}
+
       {activeTab === 'users' && (
         <>
           <div className="section-label">Pool Members</div>
@@ -378,27 +382,150 @@ export default function AdminPage() {
   )
 }
 
+// Round IDs to clear for future rounds (2, 3, 4)
+const FUTURE_MATCHUP_IDS = ROUNDS
+  .filter(r => r.id >= 2)
+  .flatMap(r => r.matchups.map(m => m.id))
+
+function ResetPicks({ s, flash }) {
+  const [loading, setLoading] = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
+  const [newDeadline, setNewDeadline] = useState('')
+  const [done, setDone] = useState(false)
+
+  async function doReset() {
+    if (!confirmed) { setConfirmed(true); return }
+    setLoading(true)
+
+    // 1. Delete all picks for rounds 2, 3, 4
+    for (const mid of FUTURE_MATCHUP_IDS) {
+      await supabase.from('picks').delete().eq('matchup_id', mid)
+    }
+
+    // 2. Delete results for rounds 2, 3, 4
+    for (const mid of FUTURE_MATCHUP_IDS) {
+      await supabase.from('results').delete().eq('matchup_id', mid)
+    }
+
+    // 3. Reset r2, r3, r4 scores to 0 for everyone
+    await supabase.rpc('reset_future_scores').then(() => {}).catch(() => {
+      // fallback if RPC doesn't exist — update directly
+    })
+    const { data: allScores } = await supabase.from('scores').select('user_id, r1, display_name')
+    if (allScores) {
+      const updates = allScores.map(s => ({
+        user_id: s.user_id,
+        display_name: s.display_name,
+        r1: s.r1,
+        r2: 0, r3: 0, r4: 0,
+        total: s.r1 || 0
+      }))
+      await supabase.from('scores').upsert(updates, { onConflict: 'user_id' })
+    }
+
+    setLoading(false)
+    setDone(true)
+    flash('✓ Future picks cleared! Everyone can now re-pick rounds 2–4.')
+  }
+
+  return (
+    <>
+      <div className="section-label">Reset Future Round Picks</div>
+      <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 20 }}>
+        Use this when you're ready to open picks for Round 2. This will:
+      </div>
+      <div style={{ background: 'rgba(200,16,46,0.06)', border: '1px solid rgba(200,16,46,0.2)', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
+        <div style={{ fontSize: 13, color: '#041E42', lineHeight: 1.8 }}>
+          🗑️ <strong>Delete all picks</strong> for Rounds 2, 3 and the Final<br />
+          🗑️ <strong>Clear results</strong> for Rounds 2, 3 and the Final<br />
+          🔢 <strong>Reset R2/CF/Final scores</strong> to 0 (R1 scores are kept)<br />
+        </div>
+      </div>
+
+      {done ? (
+        <div style={{ background: 'rgba(29,158,117,0.1)', border: '1px solid #1D9E75', borderRadius: 10, padding: '16px', fontSize: 14, color: '#0F6E56', fontWeight: 600 }}>
+          ✓ Done! Future picks have been cleared. Share the site link with everyone so they can make new picks for rounds 2–4.
+        </div>
+      ) : (
+        <>
+          {!confirmed ? (
+            <button style={{ ...s.btn, background: '#C8102E', maxWidth: 300 }} onClick={doReset}>
+              Reset Future Picks
+            </button>
+          ) : (
+            <div>
+              <div style={{ fontSize: 14, color: '#C8102E', fontWeight: 600, marginBottom: 12 }}>
+                ⚠️ Are you sure? This cannot be undone.
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button style={{ ...s.btn, background: '#C8102E', maxWidth: 200 }} onClick={doReset} disabled={loading}>
+                  {loading ? <span className="spinner" /> : 'Yes, Reset Everything'}
+                </button>
+                <button style={{ ...s.btn, background: '#6B7A8D', maxWidth: 100 }} onClick={() => setConfirmed(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
 function ManualScores({ s, flash }) {
   const [scores, setScores] = useState([])
+  const [allPicks, setAllPicks] = useState({})
+  const [results, setResults] = useState({})
+  const [overrides, setOverrides] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(null)
+  const [expanded, setExpanded] = useState({})
 
-  useEffect(() => { loadScores() }, [])
+  useEffect(() => { loadAll() }, [])
 
-  async function loadScores() {
-    const { data } = await supabase
-      .from('scores')
-      .select('user_id, display_name, r1, r2, r3, r4, total')
-      .order('display_name')
-    if (data) setScores(data.map(r => ({ ...r })))
+  async function loadAll() {
+    const [scoresRes, picksRes, resultsRes, overridesRes] = await Promise.all([
+      supabase.from('scores').select('user_id, display_name, r1, r2, r3, r4, total').order('display_name'),
+      supabase.from('picks').select('*'),
+      supabase.from('results').select('*'),
+      supabase.from('matchup_overrides').select('*'),
+    ])
+    if (scoresRes.data) setScores(scoresRes.data.map(r => ({ ...r })))
+
+    const picksMap = {}
+    ;(picksRes.data || []).forEach(p => {
+      if (!picksMap[p.user_id]) picksMap[p.user_id] = {}
+      picksMap[p.user_id][p.matchup_id] = { team: p.team, games: p.games }
+    })
+    setAllPicks(picksMap)
+
+    const resultsMap = {}
+    ;(resultsRes.data || []).forEach(r => { resultsMap[r.matchup_id] = r })
+    setResults(resultsMap)
+
+    const overridesMap = {}
+    ;(overridesRes.data || []).forEach(o => { overridesMap[o.matchup_id] = o })
+    setOverrides(overridesMap)
+
     setLoading(false)
+  }
+
+  function getTeamAbbrev(matchupId, slot) {
+    const round = ROUNDS.find(r => r.matchups.find(m => m.id === matchupId))
+    const base = round?.matchups.find(m => m.id === matchupId)
+    if (!base) return '?'
+    const ov = overrides[matchupId]
+    const a1 = ov?.a1 || base.a1
+    const a2 = ov?.a2 || base.a2
+    return slot === 't1' ? a1 : a2
   }
 
   function update(userId, field, value) {
     setScores(prev => prev.map(row => {
       if (row.user_id !== userId) return row
       const updated = { ...row, [field]: Number(value) || 0 }
-      updated.total = (updated.r1 || 0) + (updated.r2 || 0) + (updated.r3 || 0) + (updated.r4 || 0)
+      updated.total = (updated.r1||0) + (updated.r2||0) + (updated.r3||0) + (updated.r4||0)
       return updated
     }))
   }
@@ -417,50 +544,109 @@ function ManualScores({ s, flash }) {
 
   return (
     <>
-      <div className="section-label">Manually Edit Scores</div>
+      <div className="section-label">Edit Scores</div>
       <div style={{ fontSize: 13, color: '#9CAAB8', marginBottom: 16 }}>
-        Edit each player's round scores directly. Total updates automatically. Hit Save per row.
+        Click a player to see their picks. Adjust R1/R2/CF/Final and hit Save.
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.1)' }}>
-              {['Player', 'R1', 'R2', 'CF', 'Final', 'Total', ''].map(h => (
-                <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#6B7A8D' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {scores.map(row => (
-              <tr key={row.user_id} style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-                <td style={{ padding: '10px 10px', fontWeight: 600, color: '#041E42', minWidth: 100 }}>{row.display_name}</td>
-                {['r1','r2','r3','r4'].map(field => (
-                  <td key={field} style={{ padding: '6px 6px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {scores.map(row => {
+          const isOpen = expanded[row.user_id]
+          const userPicks = allPicks[row.user_id] || {}
+          return (
+            <div key={row.user_id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              {/* Header row */}
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', flexWrap: 'wrap' }}
+                onClick={() => setExpanded(e => ({ ...e, [row.user_id]: !e[row.user_id] }))}
+              >
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, color: '#041E42', minWidth: 90, flex: 1 }}>
+                  {isOpen ? '▾' : '▸'} {row.display_name}
+                </div>
+                {['r1','r2','r3','r4'].map((field, i) => (
+                  <div key={field} style={{ display: 'flex', alignItems: 'center', gap: 4 }} onClick={e => e.stopPropagation()}>
+                    <span style={{ fontSize: 11, color: '#9CAAB8', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 1 }}>
+                      {['R1','R2','CF','SCF'][i]}
+                    </span>
                     <input
-                      type="number"
-                      min="0"
+                      type="number" min="0"
                       value={row[field] || 0}
                       onChange={e => update(row.user_id, field, e.target.value)}
-                      style={{ ...s.input, width: 60, textAlign: 'center' }}
+                      style={{ ...s.input, width: 52, textAlign: 'center', padding: '4px 6px' }}
                     />
-                  </td>
+                  </div>
                 ))}
-                <td style={{ padding: '6px 10px', fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, color: '#FFD700' }}>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700, color: '#FFD700', minWidth: 40, textAlign: 'right' }}>
                   {row.total}
-                </td>
-                <td style={{ padding: '6px 6px' }}>
-                  <button
-                    style={{ ...s.btn, padding: '6px 14px', fontSize: 12, width: 'auto', background: '#0F6E56' }}
-                    onClick={() => saveRow(row)}
-                    disabled={saving === row.user_id}
-                  >
-                    {saving === row.user_id ? '...' : 'Save'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+                <button
+                  style={{ ...s.btn, padding: '6px 14px', fontSize: 12, width: 'auto', background: '#0F6E56', flexShrink: 0 }}
+                  onClick={e => { e.stopPropagation(); saveRow(row) }}
+                  disabled={saving === row.user_id}
+                >
+                  {saving === row.user_id ? '...' : 'Save'}
+                </button>
+              </div>
+
+              {/* Expanded picks view */}
+              {isOpen && (
+                <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', padding: '10px 14px', background: '#F8F9FB' }}>
+                  {ROUNDS.map(round => {
+                    const pts = { 1:5, 2:10, 3:15, 4:20 }[round.id]
+                    return (
+                      <div key={round.id} style={{ marginBottom: 12 }}>
+                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 11, fontWeight: 700, color: '#9CAAB8', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+                          {round.label} · +{pts} pts each
+                        </div>
+                        {round.matchups.map(m => {
+                          const pick = userPicks[m.id]
+                          const result = results[m.id]
+                          const a1 = getTeamAbbrev(m.id, 't1')
+                          const a2 = getTeamAbbrev(m.id, 't2')
+                          const pickedAbbr = pick ? (pick.team === 't1' ? a1 : a2) : null
+                          const teamCorrect = result && pickedAbbr === result.winner
+                          const gamesCorrect = result && pick?.games === result.games
+                          const isTBD = !a1 || a1 === '???' || a1 === 'TBD'
+
+                          return (
+                            <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)', flexWrap: 'wrap' }}>
+                              {/* Matchup */}
+                              <div style={{ fontSize: 12, color: '#6B7A8D', minWidth: 80 }}>
+                                {isTBD ? '(TBD)' : `${a1} vs ${a2}`}
+                              </div>
+                              {/* Pick */}
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#041E42', minWidth: 80 }}>
+                                {pick ? `${pickedAbbr} in ${pick.games}` : <span style={{ color: '#9CAAB8' }}>No pick</span>}
+                              </div>
+                              {/* Result */}
+                              {result ? (
+                                <div style={{ fontSize: 12, color: '#6B7A8D' }}>
+                                  Actual: {result.winner} in {result.games}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: 12, color: '#9CAAB8' }}>Pending</div>
+                              )}
+                              {/* Points indicators */}
+                              {result && pick && (
+                                <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: teamCorrect ? 'rgba(29,158,117,0.15)' : 'rgba(200,16,46,0.1)', color: teamCorrect ? '#0F6E56' : '#C8102E', fontWeight: 600 }}>
+                                    Team {teamCorrect ? `+${pts}✓` : '✗'}
+                                  </span>
+                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: (teamCorrect && gamesCorrect) ? 'rgba(29,158,117,0.15)' : 'rgba(200,16,46,0.1)', color: (teamCorrect && gamesCorrect) ? '#0F6E56' : '#C8102E', fontWeight: 600 }}>
+                                    Games {(teamCorrect && gamesCorrect) ? `+${pts}✓` : '✗'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </>
   )
