@@ -8,6 +8,7 @@ export default function HomePage() {
   const [leader, setLeader] = useState(null)
   const [myRank, setMyRank] = useState(null)
   const [myPts, setMyPts] = useState(null)
+  const [isTied, setIsTied] = useState(false)
   const [playerCount, setPlayerCount] = useState(null)
   const [leaders, setLeaders] = useState(null)
   const [goalie, setGoalie] = useState(null)
@@ -34,12 +35,14 @@ export default function HomePage() {
     setLeader(data[0])
     setPlayerCount(data.length)
     const idx = data.findIndex(r => r.user_id === user?.id)
-if (idx >= 0) {
-  const myTotal = data[idx].total
-  const rank = data.filter(r => r.total > myTotal).length + 1
-  setMyRank(rank)
-  setMyPts(myTotal)
-}
+    if (idx >= 0) {
+      const myTotal = data[idx].total
+      const rank = data.filter(r => r.total > myTotal).length + 1
+      const tied = data.filter(r => r.total === myTotal).length > 1
+      setMyRank(rank)
+      setMyPts(myTotal)
+      setIsTied(tied)
+    }
   }
 
   async function loadStats() {
@@ -117,9 +120,9 @@ if (idx >= 0) {
               <div style={s.heroRight}>
                 <div style={s.heroSub}>Your rank</div>
                 <div style={s.heroRank}>
-  {data && data.filter(r => r.total === myPts).length > 1 ? `T-` : `#`}{myRank}
-  <span style={{ fontSize: 16, color: '#6B8FAD' }}> of {playerCount}</span>
-</div>
+                  {isTied ? 'T-' : '#'}{myRank}
+                  <span style={{ fontSize: 16, color: '#6B8FAD' }}> of {playerCount}</span>
+                </div>
                 {behindBy > 0 && <div style={s.heroPts}>{behindBy} pts back</div>}
                 {isLeading && <div style={{ fontSize: 13, color: '#1D9E75', marginTop: 4, fontWeight: 600 }}>🏒 You're leading!</div>}
               </div>
