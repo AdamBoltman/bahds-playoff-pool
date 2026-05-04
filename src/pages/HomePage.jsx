@@ -34,7 +34,12 @@ export default function HomePage() {
     setLeader(data[0])
     setPlayerCount(data.length)
     const idx = data.findIndex(r => r.user_id === user?.id)
-    if (idx >= 0) { setMyRank(idx + 1); setMyPts(data[idx].total) }
+if (idx >= 0) {
+  const myTotal = data[idx].total
+  const rank = data.filter(r => r.total > myTotal).length + 1
+  setMyRank(rank)
+  setMyPts(myTotal)
+}
   }
 
   async function loadStats() {
