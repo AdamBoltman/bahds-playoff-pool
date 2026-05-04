@@ -116,7 +116,10 @@ if (idx >= 0) {
             {myRank && (
               <div style={s.heroRight}>
                 <div style={s.heroSub}>Your rank</div>
-                <div style={s.heroRank}>#{myRank}<span style={{ fontSize: 16, color: '#6B8FAD' }}> of {playerCount}</span></div>
+                <div style={s.heroRank}>
+  {data && data.filter(r => r.total === myPts).length > 1 ? `T-` : `#`}{myRank}
+  <span style={{ fontSize: 16, color: '#6B8FAD' }}> of {playerCount}</span>
+</div>
                 {behindBy > 0 && <div style={s.heroPts}>{behindBy} pts back</div>}
                 {isLeading && <div style={{ fontSize: 13, color: '#1D9E75', marginTop: 4, fontWeight: 600 }}>🏒 You're leading!</div>}
               </div>
