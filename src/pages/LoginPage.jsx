@@ -76,8 +76,8 @@ export default function LoginPage() {
   }
 
   const subtitles = {
-    login: 'Sign in to your pool account',
-    signup: 'Join the Bahds Playoff Pool',
+    login: 'Sign in to Bahds Hockey',
+    signup: 'Join the Bahds crew',
     forgot: 'We\'ll send you a reset link',
     reset: 'Choose a new password',
     sent: message,
@@ -87,9 +87,9 @@ export default function LoginPage() {
     <div style={s.outer}>
       <div style={s.card} className="fade-up">
         <div style={s.logoWrap}>
-          <img src="/icon-192.png" alt="Bahds Pool" style={s.puck} />
+          <img src="/icon-192.png" alt="Bahds Hockey" style={s.puck} />
         </div>
-        <div style={s.appName}>Bahds Playoff Pool</div>
+        <div style={s.appName}>Bahds Hockey</div>
         <div style={s.title}>{titles[mode]}</div>
         <div style={s.subtitle}>{subtitles[mode]}</div>
 
@@ -182,18 +182,18 @@ export default function LoginPage() {
 }
 
 const s = {
-  outer: { minHeight: 'calc(100vh - 58px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: '#F2F4F7' },
-  card: { background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 20, padding: '40px 32px', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' },
+  outer: { minHeight: 'calc(100vh - 58px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'var(--bg)' },
+  card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '40px 32px', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: 'var(--shadow-md)' },
   logoWrap: { marginBottom: 16 },
   puck: { width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', display: 'inline-block' },
-  appName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: '#041E42', marginBottom: 4 },
-  title: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 600, color: '#6B7A8D', marginBottom: 4 },
-  subtitle: { fontSize: 13, color: '#9CAAB8', lineHeight: 1.5, marginBottom: 24 },
-  input: { width: '100%', padding: '11px 14px', background: '#F8F9FB', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, color: '#041E42', fontSize: 15, marginBottom: 10, outline: 'none', display: 'block', textAlign: 'left' },
-  btn: { width: '100%', padding: '12px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 8, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  appName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 4 },
+  title: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 600, color: 'var(--muted)', marginBottom: 4 },
+  subtitle: { fontSize: 13, color: 'var(--dim)', lineHeight: 1.5, marginBottom: 24 },
+  input: { width: '100%', padding: '11px 14px', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 8, color: 'var(--text)', fontSize: 15, marginBottom: 10, outline: 'none', display: 'block', textAlign: 'left' },
+  btn: { width: '100%', padding: '12px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 8, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   error: { color: '#FF8A9A', fontSize: 13, marginBottom: 10, textAlign: 'left', lineHeight: 1.4 },
   links: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16, },
-  link: { background: 'transparent', border: 'none', color: '#1A6BC4', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 },
-  checkmark: { width: 56, height: 56, background: 'rgba(29,158,117,0.2)', border: '1px solid #1D9E75', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#1D9E75' },
-  note: { marginTop: 24, fontSize: 11, color: '#9CAAB8', lineHeight: 1.5, borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 16 },
+  link: { background: 'transparent', border: 'none', color: 'var(--info)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 },
+  checkmark: { width: 56, height: 56, background: 'rgba(47,190,143,0.15)', border: '1px solid var(--success)', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'var(--success)' },
+  note: { marginTop: 24, fontSize: 11, color: 'var(--dim)', lineHeight: 1.5, borderTop: '1px solid var(--border)', paddingTop: 16 },
 }

@@ -1,16 +1,23 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
+import { isPlayoffs } from '../lib/nhl.js'
 
-const links = [
+const baseLinks = [
   { to: '/', label: 'Home' },
+  { to: '/schedule', label: 'Schedule' },
+  { to: '/standings', label: 'Standings' },
+  { to: '/leaderboard', label: 'Pool' },
+]
+
+const playoffLinks = [
   { to: '/picks', label: 'My Picks' },
-  { to: '/leaderboard', label: 'Standings' },
   { to: '/scoring', label: 'Scoring' },
 ]
 
 export default function NavBar() {
   const { isAdmin } = useAuth()
-  const allLinks = isAdmin ? [...links, { to: '/admin', label: 'Admin' }] : links
+  let allLinks = isPlayoffs() ? [...baseLinks, ...playoffLinks] : baseLinks
+  if (isAdmin) allLinks = [...allLinks, { to: '/admin', label: 'Admin' }]
 
   return (
     <nav style={s.nav}>
@@ -18,8 +25,8 @@ export default function NavBar() {
         <NavLink key={l.to} to={l.to} end={l.to === '/'}
           style={({ isActive }) => ({
             ...s.link,
-            color: isActive ? '#C8102E' : '#6B7A8D',
-            borderBottom: isActive ? '3px solid #C8102E' : '3px solid transparent',
+            color: isActive ? 'var(--red)' : 'var(--muted)',
+            borderBottom: isActive ? '3px solid var(--red)' : '3px solid transparent',
             fontWeight: isActive ? 700 : 600,
           })}>
           {l.label}
@@ -31,12 +38,12 @@ export default function NavBar() {
 
 const s = {
   nav: {
-    background: '#FFFFFF',
+    background: 'var(--surface)',
     display: 'flex',
-    borderBottom: '1px solid rgba(0,0,0,0.08)',
+    borderBottom: '1px solid var(--border)',
     overflowX: 'auto',
     padding: '0 8px',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    position: 'sticky', top: 60, zIndex: 190,
   },
   link: {
     padding: '14px 16px',

@@ -99,7 +99,7 @@ export default function HomePage() {
               </div>
             </div>
           ) : (
-            <div style={s.commText}>{commNote || <span style={{ color: '#6B8FAD', fontStyle: 'italic', fontSize: 13 }}>No message yet — click Edit to post one.</span>}</div>
+            <div style={s.commText}>{commNote || <span style={{ color: 'var(--dim)', fontStyle: 'italic', fontSize: 13 }}>No message yet — click Edit to post one.</span>}</div>
           )}
         </div>
       )}
@@ -121,10 +121,10 @@ export default function HomePage() {
                 <div style={s.heroSub}>Your rank</div>
                 <div style={s.heroRank}>
                   {isTied ? 'T-' : '#'}{myRank}
-                  <span style={{ fontSize: 16, color: '#6B8FAD' }}> of {playerCount}</span>
+                  <span style={{ fontSize: 16, color: 'var(--dim)' }}> of {playerCount}</span>
                 </div>
                 {behindBy > 0 && <div style={s.heroPts}>{behindBy} pts back</div>}
-                {isLeading && <div style={{ fontSize: 13, color: '#1D9E75', marginTop: 4, fontWeight: 600 }}>🏒 You're leading!</div>}
+                {isLeading && <div style={{ fontSize: 13, color: 'var(--success)', marginTop: 4, fontWeight: 600 }}>🏒 You're leading!</div>}
               </div>
             )}
           </div>
@@ -133,7 +133,7 @@ export default function HomePage() {
         <div style={s.emptyHero}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🏒</div>
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Pool hasn't started yet</div>
-          <div style={{ fontSize: 13, color: '#6B8FAD' }}>Standings will appear here once picks are submitted</div>
+          <div style={{ fontSize: 13, color: 'var(--dim)' }}>Standings will appear here once picks are submitted</div>
         </div>
       )}
 
@@ -149,20 +149,22 @@ export default function HomePage() {
               return (
                 <div key={i} className="card" style={{ padding: '12px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: isLive ? '#C8102E' : '#6B8FAD', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: 10, color: isLive ? 'var(--red)' : 'var(--dim)', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
                       {isLive ? '🔴 LIVE' : isFinal ? 'Final' : 'Upcoming'}
                     </span>
-                    {g.seriesSummary && <span style={{ fontSize: 10, color: '#A0B4CC' }}>{g.seriesSummary.seriesStatusShort}</span>}
+                    {g.seriesSummary && <span style={{ fontSize: 10, color: 'var(--dim)' }}>{g.seriesSummary.seriesStatusShort}</span>}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: '#041E42' }}>{away.abbrev || '—'}</div>
-                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: '#C8102E' }}>{away.score ?? ''}</div>}
+                      {away.logo && <img src={away.logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', marginBottom: 2 }} />}
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{away.abbrev || '—'}</div>
+                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)' }}>{away.score ?? ''}</div>}
                     </div>
-                    <div style={{ fontSize: 11, color: '#6B8FAD' }}>@</div>
+                    <div style={{ fontSize: 11, color: 'var(--dim)' }}>@</div>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: '#041E42' }}>{home.abbrev || '—'}</div>
-                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: '#C8102E' }}>{home.score ?? ''}</div>}
+                      {home.logo && <img src={home.logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', marginBottom: 2 }} />}
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{home.abbrev || '—'}</div>
+                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)' }}>{home.score ?? ''}</div>}
                     </div>
                   </div>
                 </div>
@@ -188,10 +190,10 @@ export default function HomePage() {
         </div>
       ) : (
         <div style={s.statGrid} className="stagger">
-          <StatCard label="Goals leader" value={leaders?.goals?.lastName || '—'} sub={leaders?.goals ? `${leaders.goals.teamAbbrevs} · ${leaders.goals.value} G` : 'Loading...'} accent="#C8102E" />
-          <StatCard label="Points leader" value={leaders?.points?.lastName || '—'} sub={leaders?.points ? `${leaders.points.teamAbbrevs} · ${leaders.points.value} PTS` : 'Loading...'} accent="#1A6BC4" />
-          <StatCard label="Assists leader" value={leaders?.assists?.lastName || '—'} sub={leaders?.assists ? `${leaders.assists.teamAbbrevs} · ${leaders.assists.value} A` : 'Loading...'} accent="#1A6BC4" />
-          <StatCard label="GAA leader" value={goalie?.lastName || '—'} sub={goalie ? `${goalie.teamAbbrevs} · ${Number(goalie.value||0).toFixed(2)} GAA` : 'Loading...'} accent="#1D9E75" />
+          <StatCard label="Goals leader" value={leaders?.goals?.lastName || '—'} sub={leaders?.goals ? `${leaders.goals.teamAbbrevs} · ${leaders.goals.value} G` : 'Loading...'} accent="var(--red)" />
+          <StatCard label="Points leader" value={leaders?.points?.lastName || '—'} sub={leaders?.points ? `${leaders.points.teamAbbrevs} · ${leaders.points.value} PTS` : 'Loading...'} accent="var(--info)" />
+          <StatCard label="Assists leader" value={leaders?.assists?.lastName || '—'} sub={leaders?.assists ? `${leaders.assists.teamAbbrevs} · ${leaders.assists.value} A` : 'Loading...'} accent="var(--info)" />
+          <StatCard label="GAA leader" value={goalie?.lastName || '—'} sub={goalie ? `${goalie.teamAbbrevs} · ${Number(goalie.value||0).toFixed(2)} GAA` : 'Loading...'} accent="var(--success)" />
         </div>
       )}
 
@@ -229,66 +231,64 @@ export default function HomePage() {
 function StatCard({ label, value, sub, accent }) {
   return (
     <div className="card" style={{ borderLeft: `3px solid ${accent}`, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ fontSize: 11, color: '#9CAAB8', marginBottom: 6, letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: '#041E42', lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 12, color: '#6B7A8D', marginTop: 4 }}>{sub}</div>
+      <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 6, letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{sub}</div>
     </div>
   )
 }
 
 const s = {
   commCard: {
-    background: '#FFF8E1', border: '1px solid rgba(212,168,0,0.25)',
+    background: 'rgba(255,215,0,0.06)', border: '1px solid rgba(255,215,0,0.2)',
     borderRadius: 12, padding: '14px 16px', marginBottom: 20,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
   commHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  commLabel: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, color: '#B8900A', letterSpacing: 2, textTransform: 'uppercase' },
-  commText: { fontSize: 14, color: '#041E42', lineHeight: 1.6 },
-  editBtn: { background: 'transparent', border: '1px solid rgba(184,144,10,0.3)', borderRadius: 5, padding: '3px 10px', fontSize: 12, color: '#B8900A', cursor: 'pointer' },
-  noteInput: { width: '100%', background: 'white', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, color: '#041E42', fontSize: 14, padding: '10px 12px', resize: 'vertical', fontFamily: "'Barlow',sans-serif", outline: 'none' },
-  saveNoteBtn: { padding: '7px 18px', background: '#C8102E', color: 'white', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  cancelBtn: { padding: '7px 18px', background: 'transparent', color: '#6B7A8D', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 7, fontSize: 13, cursor: 'pointer' },
+  commLabel: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, color: 'var(--gold)', letterSpacing: 2, textTransform: 'uppercase' },
+  commText: { fontSize: 14, color: 'var(--text)', lineHeight: 1.6 },
+  editBtn: { background: 'transparent', border: '1px solid rgba(255,215,0,0.3)', borderRadius: 5, padding: '3px 10px', fontSize: 12, color: 'var(--gold)', cursor: 'pointer' },
+  noteInput: { width: '100%', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 8, color: 'var(--text)', fontSize: 14, padding: '10px 12px', resize: 'vertical', fontFamily: "'Barlow',sans-serif", outline: 'none' },
+  saveNoteBtn: { padding: '7px 18px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  cancelBtn: { padding: '7px 18px', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border2)', borderRadius: 7, fontSize: 13, cursor: 'pointer' },
   hero: {
-    background: 'linear-gradient(135deg, #041E42 0%, #0a2d52 100%)',
-    border: 'none',
+    background: 'linear-gradient(135deg, #171a23 0%, #1d212c 100%)',
+    border: '1px solid var(--border)',
     borderRadius: 16, padding: '22px 24px',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     gap: 16, flexWrap: 'wrap', marginBottom: 24,
-    boxShadow: '0 4px 20px rgba(4,30,66,0.2)',
+    boxShadow: 'var(--shadow-md)',
     position: 'relative', overflow: 'hidden',
   },
   emptyHero: {
-    background: 'linear-gradient(135deg, #041E42, #0a2d52)',
-    border: 'none',
+    background: 'linear-gradient(135deg, #171a23, #1d212c)',
+    border: '1px solid var(--border)',
     borderRadius: 16, padding: '32px 24px',
     textAlign: 'center', marginBottom: 24,
-    boxShadow: '0 4px 20px rgba(4,30,66,0.2)',
+    boxShadow: 'var(--shadow-md)',
   },
-  heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
+  heroSub: { fontSize: 11, color: 'var(--dim)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
   heroName: {
     fontFamily: "'Barlow Condensed',sans-serif",
-    fontSize: 42, fontWeight: 700, color: '#FFD700', lineHeight: 1,
-    textShadow: '0 0 30px rgba(255,215,0,0.3)',
+    fontSize: 42, fontWeight: 700, color: 'var(--gold)', lineHeight: 1,
+    textShadow: '0 0 30px rgba(255,215,0,0.25)',
   },
   heroRight: { textAlign: 'right' },
-  heroRank: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 32, fontWeight: 700, color: 'white' },
-  heroPts: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
+  heroRank: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 32, fontWeight: 700, color: 'var(--text)' },
+  heroPts: { fontSize: 13, color: 'var(--dim)', marginTop: 4 },
   gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8, },
   statGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 },
   newsItem: {
-    background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.07)',
+    background: 'var(--surface)', border: '1px solid var(--border)',
     borderRadius: 12, padding: '14px 16px',
     display: 'flex', gap: 12, alignItems: 'flex-start',
     textDecoration: 'none', color: 'inherit',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
     transition: 'box-shadow 0.15s',
   },
-  newsDot: { width: 7, height: 7, background: '#C8102E', borderRadius: '50%', marginTop: 6, flexShrink: 0 },
-  newsSrc: { fontSize: 10, color: '#C8102E', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
-  newsTitle: { fontSize: 14, color: '#041E42', lineHeight: 1.45 },
-  newsMeta: { fontSize: 12, color: '#9CAAB8', marginTop: 4 },
-  newsArrow: { fontSize: 18, color: '#9CAAB8', marginLeft: 4, flexShrink: 0 },
+  newsDot: { width: 7, height: 7, background: 'var(--red)', borderRadius: '50%', marginTop: 6, flexShrink: 0 },
+  newsSrc: { fontSize: 10, color: 'var(--red)', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
+  newsTitle: { fontSize: 14, color: 'var(--text)', lineHeight: 1.45 },
+  newsMeta: { fontSize: 12, color: 'var(--dim)', marginTop: 4 },
+  newsArrow: { fontSize: 18, color: 'var(--dim)', marginLeft: 4, flexShrink: 0 },
 }
 
 const FALLBACK_NEWS = [

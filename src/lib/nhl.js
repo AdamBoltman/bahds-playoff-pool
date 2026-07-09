@@ -2,8 +2,10 @@
 const PROXY = '/api/nhl'
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl'
 
+// Update both dates each spring when the bracket is announced (see ROUNDS in lib/supabase.js)
 const PLAYOFFS_START = new Date('2026-04-18T00:00:00Z')
-export const isPlayoffs = () => new Date() >= PLAYOFFS_START
+const PLAYOFFS_END = new Date('2026-06-30T00:00:00Z')
+export const isPlayoffs = () => { const n = new Date(); return n >= PLAYOFFS_START && n <= PLAYOFFS_END }
 const seasonId = '20252026'
 const gameTypeId = () => isPlayoffs() ? 3 : 2
 
@@ -78,6 +80,49 @@ export async function fetchNHLScores() {
     const data = await nhlFetch('score/now')
     return data.games || []
   } catch { return [] }
+}
+
+// Returns { date, dayAbbrev, numberOfGames, games } for the given day (YYYY-MM-DD, or 'now' for today)
+export async function fetchScheduleDay(date = 'now') {
+  try {
+    const data = await nhlFetch(`schedule/${date}`)
+    return data.gameWeek?.[0] || null
+  } catch (e) {
+    console.error('fetchScheduleDay:', e)
+    return null
+  }
+}
+
+export function shiftDate(dateStr, days) {
+  const d = new Date(`${dateStr}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+export async function fetchStandings() {
+  try {
+    const data = await nhlFetch('standings/now')
+    return data.standings || []
+  } catch (e) {
+    console.error('fetchStandings:', e)
+    return []
+  }
+}
+
+// Lazy per-game lookup — call only for games a user wants highlights for
+export async function fetchGameHighlights(gameId) {
+  try {
+    const data = await nhlFetch(`gamecenter/${gameId}/right-rail`)
+    const v = data?.gameVideo
+    if (!v) return null
+    return {
+      recap: v.threeMinRecap ? `https://www.nhl.com/video/c-${v.threeMinRecap}` : null,
+      condensed: v.condensedGame ? `https://www.nhl.com/video/c-${v.condensedGame}` : null,
+    }
+  } catch (e) {
+    console.error('fetchGameHighlights:', e)
+    return null
+  }
 }
 
 export async function fetchESPNNews() {

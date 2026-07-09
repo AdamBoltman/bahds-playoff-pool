@@ -1,10 +1,10 @@
 {
-  "name": "Bahds Playoff Pool",
-  "short_name": "Bahds Pool",
-  "description": "The Bahds 2026 NHL Playoff Pool",
+  "name": "Bahds Hockey",
+  "short_name": "Bahds Hockey",
+  "description": "Live NHL scores, standings, schedule, and stat leaders — plus the Bahds playoff pool",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#041E42",
+  "background_color": "#0f1117",
   "theme_color": "#C8102E",
   "orientation": "portrait",
   "icons": [
