@@ -66,9 +66,38 @@ input, textarea, select { font-family: 'Barlow', sans-serif; }
 
 /* Page wrap */
 .page-wrap {
-  max-width: 860px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 20px 16px 64px;
+}
+
+/* Home page: main content + news sidebar on wide screens */
+.home-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+@media (min-width: 980px) {
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    align-items: start;
+  }
+  .home-sidebar {
+    position: sticky;
+    top: 132px;
+    max-height: calc(100vh - 152px);
+    overflow-y: auto;
+  }
+}
+
+.leader-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .leader-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* Animations */

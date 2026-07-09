@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { fetchSkaterLeaders, fetchGoalieLeader, fetchESPNNews, fetchNHLScores, timeAgo } from '../lib/nhl.js'
+import {
+  fetchSkaterLeaders, fetchGoalieLeader, fetchESPNNews, timeAgo,
+  isPlayoffs, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
+} from '../lib/nhl.js'
 import { useAuth } from '../hooks/useAuth.jsx'
 
 export default function HomePage() {
   const { user, isAdmin } = useAuth()
+  const playoffs = isPlayoffs()
   const [leader, setLeader] = useState(null)
   const [myRank, setMyRank] = useState(null)
   const [myPts, setMyPts] = useState(null)
@@ -14,7 +18,8 @@ export default function HomePage() {
   const [goalie, setGoalie] = useState(null)
   const [news, setNews] = useState([])
   const [newsLoading, setNewsLoading] = useState(true)
-  const [liveGames, setLiveGames] = useState([])
+  const [today, setToday] = useState(null)
+  const [lastNight, setLastNight] = useState(null)
   const [commNote, setCommNote] = useState('')
   const [editingNote, setEditingNote] = useState(false)
   const [noteInput, setNoteInput] = useState('')
@@ -22,10 +27,10 @@ export default function HomePage() {
   const [statsLoading, setStatsLoading] = useState(true)
 
   useEffect(() => {
-    loadLeaderboard()
+    if (playoffs) loadLeaderboard()
     loadStats()
     loadNews()
-    loadLiveGames()
+    loadGames()
     loadCommNote()
   }, [])
 
@@ -59,9 +64,11 @@ export default function HomePage() {
     setNewsLoading(false)
   }
 
-  async function loadLiveGames() {
-    const games = await fetchNHLScores()
-    setLiveGames(games.slice(0, 6))
+  async function loadGames() {
+    const t = todayStr()
+    const [t0, y0] = await Promise.all([fetchScheduleDay(t), fetchScheduleDay(shiftDate(t, -1))])
+    setToday(t0)
+    setLastNight(y0)
   }
 
   async function loadCommNote() {
@@ -77,6 +84,8 @@ export default function HomePage() {
 
   const behindBy = leader && myPts != null ? leader.total - myPts : null
   const isLeading = behindBy === 0 && myRank === 1
+  const todayGames = today?.games || []
+  const finishedLastNight = (lastNight?.games || []).filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF')
 
   return (
     <div className="page-wrap fade-up">
@@ -104,8 +113,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Hero */}
-      {leader ? (
+      {/* Pool leader — playoffs only */}
+      {playoffs && (leader ? (
         <>
           <div className="section-label">Pool Leader</div>
           <div style={{ ...s.hero, animation: 'slideUp 0.4s ease both' }}>
@@ -135,105 +144,149 @@ export default function HomePage() {
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Pool hasn't started yet</div>
           <div style={{ fontSize: 13, color: 'var(--dim)' }}>Standings will appear here once picks are submitted</div>
         </div>
-      )}
+      ))}
 
-      {/* Live games */}
-      {liveGames.length > 0 && (
-        <>
-          <div className="section-label" style={{ marginTop: 24 }}>Live / Recent</div>
-          <div style={s.gamesGrid} className="stagger">
-            {liveGames.map((g, i) => {
-              const home = g.homeTeam || {}, away = g.awayTeam || {}
-              const isLive = g.gameState === 'LIVE' || g.gameState === 'CRIT'
-              const isFinal = g.gameState === 'FINAL' || g.gameState === 'OFF'
-              return (
-                <div key={i} className="card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: isLive ? 'var(--red)' : 'var(--dim)', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
-                      {isLive ? '🔴 LIVE' : isFinal ? 'Final' : 'Upcoming'}
-                    </span>
-                    {g.seriesSummary && <span style={{ fontSize: 10, color: 'var(--dim)' }}>{g.seriesSummary.seriesStatusShort}</span>}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      {away.logo && <img src={away.logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', marginBottom: 2 }} />}
-                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{away.abbrev || '—'}</div>
-                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)' }}>{away.score ?? ''}</div>}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--dim)' }}>@</div>
-                    <div style={{ textAlign: 'center' }}>
-                      {home.logo && <img src={home.logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', marginBottom: 2 }} />}
-                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{home.abbrev || '—'}</div>
-                      {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)' }}>{home.score ?? ''}</div>}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+      <div className="home-grid">
+        <div className="home-main">
+
+          {/* Stat leaders */}
+          <div className="section-label">
+            {leaders?.isPlayoffs ? 'Playoff leaders' : 'Regular season leaders'}
           </div>
-        </>
-      )}
-
-      {/* Stat leaders */}
-      <div className="section-label" style={{ marginTop: 24 }}>
-        {leaders?.isPlayoffs ? 'Playoff leaders' : 'Regular season leaders'}
-      </div>
-      {statsLoading ? (
-        <div style={s.statGrid}>
-          {[0,1,2,3].map(i => (
-            <div key={i} className="card" style={{ padding: 14 }}>
-              <div className="skeleton skeleton-text" style={{ width: '60%' }} />
-              <div className="skeleton skeleton-title" />
-              <div className="skeleton skeleton-text" style={{ width: '45%' }} />
+          {statsLoading ? (
+            <div className="leader-grid">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="card" style={{ padding: 14 }}>
+                  <div className="skeleton skeleton-text" style={{ width: '60%' }} />
+                  <div className="skeleton skeleton-title" />
+                  <div className="skeleton skeleton-text" style={{ width: '45%' }} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div style={s.statGrid} className="stagger">
-          <StatCard label="Goals leader" value={leaders?.goals?.lastName || '—'} sub={leaders?.goals ? `${leaders.goals.teamAbbrevs} · ${leaders.goals.value} G` : 'Loading...'} accent="var(--red)" />
-          <StatCard label="Points leader" value={leaders?.points?.lastName || '—'} sub={leaders?.points ? `${leaders.points.teamAbbrevs} · ${leaders.points.value} PTS` : 'Loading...'} accent="var(--info)" />
-          <StatCard label="Assists leader" value={leaders?.assists?.lastName || '—'} sub={leaders?.assists ? `${leaders.assists.teamAbbrevs} · ${leaders.assists.value} A` : 'Loading...'} accent="var(--info)" />
-          <StatCard label="GAA leader" value={goalie?.lastName || '—'} sub={goalie ? `${goalie.teamAbbrevs} · ${Number(goalie.value||0).toFixed(2)} GAA` : 'Loading...'} accent="var(--success)" />
-        </div>
-      )}
-
-      {/* News */}
-      <div className="section-label" style={{ marginTop: 24 }}>Latest News</div>
-      {newsLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[0,1,2].map(i => (
-            <div key={i} className="card" style={{ padding: 14 }}>
-              <div className="skeleton skeleton-text" style={{ width: '30%', marginBottom: 10 }} />
-              <div className="skeleton skeleton-text" />
-              <div className="skeleton skeleton-text" style={{ width: '80%' }} />
+          ) : (
+            <div className="leader-grid stagger">
+              <LeaderCard label="Goals" player={leaders?.goals} unit="G" accent="var(--red)" />
+              <LeaderCard label="Points" player={leaders?.points} unit="PTS" accent="var(--info)" />
+              <LeaderCard label="Assists" player={leaders?.assists} unit="A" accent="var(--info)" />
+              <LeaderCard label="GAA" player={goalie} unit="GAA" accent="var(--success)" decimals={2} />
             </div>
-          ))}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="stagger">
-          {news.map((a, i) => (
-            <a key={i} href={a.link} target="_blank" rel="noopener noreferrer" style={s.newsItem}>
-              <div style={s.newsDot} />
-              <div style={{ flex: 1 }}>
-                <div style={s.newsSrc}>{a.source}</div>
-                <div style={s.newsTitle}>{a.headline}</div>
-                {a.published && <div style={s.newsMeta}>{timeAgo(a.published)}</div>}
+          )}
+
+          {/* Today's games */}
+          {todayGames.length > 0 && (
+            <>
+              <div className="section-label" style={{ marginTop: 28 }}>Today</div>
+              <div style={s.gamesGrid} className="stagger">
+                {todayGames.map(g => {
+                  const home = g.homeTeam || {}, away = g.awayTeam || {}
+                  const isLive = g.gameState === 'LIVE' || g.gameState === 'CRIT'
+                  const isFinal = g.gameState === 'FINAL' || g.gameState === 'OFF'
+                  return (
+                    <div key={g.id} className="card" style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, color: isLive ? 'var(--red)' : 'var(--dim)', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+                          {isLive ? '🔴 LIVE' : isFinal ? 'Final' : 'Upcoming'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          {away.logo && <img src={away.darkLogo || away.logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', marginBottom: 2 }} />}
+                          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{away.abbrev || '—'}</div>
+                          {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)' }}>{away.score ?? ''}</div>}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--dim)' }}>@</div>
+                        <div style={{ textAlign: 'center' }}>
+                          {home.logo && <img src={home.darkLogo || home.logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', marginBottom: 2 }} />}
+                          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{home.abbrev || '—'}</div>
+                          {(isLive || isFinal) && <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)' }}>{home.score ?? ''}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-              <div style={s.newsArrow}>›</div>
-            </a>
-          ))}
+            </>
+          )}
+
+          {/* Last night's highlights */}
+          {finishedLastNight.length > 0 && (
+            <>
+              <div className="section-label" style={{ marginTop: 28 }}>Last Night's Highlights</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="stagger">
+                {finishedLastNight.map(g => {
+                  const home = g.homeTeam || {}, away = g.awayTeam || {}
+                  return (
+                    <a key={g.id} href={gamecenterUrl(g, lastNight.date)} target="_blank" rel="noopener noreferrer" style={s.hlItem}>
+                      <div style={s.hlTeams}>
+                        {away.logo && <img src={away.darkLogo || away.logo} alt="" style={s.hlLogo} />}
+                        <span style={s.hlScore}>{away.score}</span>
+                        <span style={s.hlAbbrev}>{away.abbrev}</span>
+                        <span style={s.hlAt}>@</span>
+                        <span style={s.hlAbbrev}>{home.abbrev}</span>
+                        <span style={s.hlScore}>{home.score}</span>
+                        {home.logo && <img src={home.darkLogo || home.logo} alt="" style={s.hlLogo} />}
+                      </div>
+                      <span style={s.hlWatch}>▶ Recap</span>
+                    </a>
+                  )
+                })}
+              </div>
+            </>
+          )}
         </div>
-      )}
+
+        {/* News sidebar */}
+        <div className="home-sidebar">
+          <div className="section-label">Latest News</div>
+          {newsLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} className="card" style={{ padding: 14 }}>
+                  <div className="skeleton skeleton-text" style={{ width: '30%', marginBottom: 10 }} />
+                  <div className="skeleton skeleton-text" />
+                  <div className="skeleton skeleton-text" style={{ width: '80%' }} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="stagger">
+              {news.map((a, i) => (
+                <a key={i} href={a.link} target="_blank" rel="noopener noreferrer" style={s.newsItem}>
+                  <div style={s.newsDot} />
+                  <div style={{ flex: 1 }}>
+                    <div style={s.newsSrc}>{a.source}</div>
+                    <div style={s.newsTitle}>{a.headline}</div>
+                    {a.published && <div style={s.newsMeta}>{timeAgo(a.published)}</div>}
+                  </div>
+                  <div style={s.newsArrow}>›</div>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
 
-function StatCard({ label, value, sub, accent }) {
+function LeaderCard({ label, player, unit, accent, decimals = 0 }) {
+  const headshot = player ? playerHeadshot(player.playerId, player.teamAbbrevs) : null
   return (
-    <div className="card" style={{ borderLeft: `3px solid ${accent}`, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 6, letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{sub}</div>
+    <div className="card" style={{ borderTop: `3px solid ${accent}`, padding: 14, textAlign: 'center' }}>
+      <div style={s.leaderAvatarWrap}>
+        {headshot ? (
+          <img src={headshot} alt="" style={s.leaderAvatar} onError={e => { e.target.style.display = 'none' }} />
+        ) : (
+          <div style={{ ...s.leaderAvatar, background: 'var(--surface2)' }} />
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--dim)', letterSpacing: 0.5, marginBottom: 2 }}>{label} leader</div>
+      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 19, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>
+        {player?.lastName || '—'}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
+        {player ? `${player.teamAbbrevs?.split(',')[0]} · ${Number(player.value || 0).toFixed(decimals)} ${unit}` : 'Loading...'}
+      </div>
     </div>
   )
 }
@@ -275,8 +328,21 @@ const s = {
   heroRight: { textAlign: 'right' },
   heroRank: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 32, fontWeight: 700, color: 'var(--text)' },
   heroPts: { fontSize: 13, color: 'var(--dim)', marginTop: 4 },
-  gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8, },
-  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 },
+  leaderAvatarWrap: { display: 'flex', justifyContent: 'center', marginBottom: 8 },
+  leaderAvatar: { width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', background: 'var(--surface2)' },
+  gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8 },
+  hlItem: {
+    background: 'var(--surface)', border: '1px solid var(--border)',
+    borderRadius: 12, padding: '12px 16px',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    textDecoration: 'none', color: 'inherit',
+  },
+  hlTeams: { display: 'flex', alignItems: 'center', gap: 8 },
+  hlLogo: { width: 20, height: 20, objectFit: 'contain' },
+  hlScore: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 700, color: 'var(--text)' },
+  hlAbbrev: { fontSize: 13, color: 'var(--muted)', fontWeight: 600 },
+  hlAt: { fontSize: 11, color: 'var(--dim)' },
+  hlWatch: { fontSize: 12, fontWeight: 600, color: 'var(--info)' },
   newsItem: {
     background: 'var(--surface)', border: '1px solid var(--border)',
     borderRadius: 12, padding: '14px 16px',

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { fetchScheduleDay, fetchGameHighlights, shiftDate } from '../lib/nhl.js'
+import { fetchScheduleDay, shiftDate, todayStr, gamecenterUrl } from '../lib/nhl.js'
 
 function formatDay(dateStr) {
   if (!dateStr) return ''
   const d = new Date(`${dateStr}T12:00:00Z`)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayStr()
   const yesterday = shiftDate(today, -1)
   const tomorrow = shiftDate(today, 1)
   if (dateStr === today) return 'Today'
@@ -20,21 +20,14 @@ function formatTime(iso) {
 export default function SchedulePage() {
   const [day, setDay] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [highlights, setHighlights] = useState({})
 
-  useEffect(() => { load('now') }, [])
+  useEffect(() => { load(todayStr()) }, [])
 
   async function load(date) {
     setLoading(true)
     const data = await fetchScheduleDay(date)
     setDay(data)
     setLoading(false)
-  }
-
-  async function loadHighlights(gameId) {
-    setHighlights(h => ({ ...h, [gameId]: 'loading' }))
-    const links = await fetchGameHighlights(gameId)
-    setHighlights(h => ({ ...h, [gameId]: links || 'none' }))
   }
 
   const games = day?.games || []
@@ -68,8 +61,6 @@ export default function SchedulePage() {
             const away = g.awayTeam || {}, home = g.homeTeam || {}
             const isLive = g.gameState === 'LIVE' || g.gameState === 'CRIT'
             const isFinal = g.gameState === 'FINAL' || g.gameState === 'OFF'
-            const isFuture = !isLive && !isFinal
-            const hl = highlights[g.id]
 
             return (
               <div key={g.id} className="card" style={{ padding: 16 }}>
@@ -85,17 +76,9 @@ export default function SchedulePage() {
                 </div>
                 {isFinal && (
                   <div style={s.hlRow}>
-                    {!hl && (
-                      <button style={s.hlBtn} onClick={() => loadHighlights(g.id)}>▶ Watch highlights</button>
-                    )}
-                    {hl === 'loading' && <span style={s.hlLoading}>Loading…</span>}
-                    {hl && hl !== 'loading' && hl !== 'none' && (
-                      <div style={{ display: 'flex', gap: 14 }}>
-                        {hl.recap && <a href={hl.recap} target="_blank" rel="noopener noreferrer" style={s.hlLink}>▶ Recap</a>}
-                        {hl.condensed && <a href={hl.condensed} target="_blank" rel="noopener noreferrer" style={s.hlLink}>▶ Condensed Game</a>}
-                      </div>
-                    )}
-                    {hl === 'none' && <span style={s.hlLoading}>No highlights available</span>}
+                    <a href={gamecenterUrl(g, day.date)} target="_blank" rel="noopener noreferrer" style={s.hlBtn}>
+                      ▶ Watch recap
+                    </a>
                   </div>
                 )}
               </div>
@@ -140,7 +123,6 @@ const s = {
   hlBtn: {
     background: 'transparent', border: '1px solid var(--border2)', borderRadius: 7,
     padding: '6px 14px', fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'pointer',
+    textDecoration: 'none', display: 'inline-block',
   },
-  hlLoading: { fontSize: 12, color: 'var(--dim)' },
-  hlLink: { fontSize: 12, fontWeight: 600, color: 'var(--info)', textDecoration: 'none' },
 }

@@ -6,10 +6,10 @@ const baseLinks = [
   { to: '/', label: 'Home' },
   { to: '/schedule', label: 'Schedule' },
   { to: '/standings', label: 'Standings' },
-  { to: '/leaderboard', label: 'Pool' },
 ]
 
 const playoffLinks = [
+  { to: '/leaderboard', label: 'Pool' },
   { to: '/picks', label: 'My Picks' },
   { to: '/scoring', label: 'Scoring' },
 ]

@@ -35,6 +35,7 @@ export async function fetchSkaterLeaders() {
         lastName: p.skaterFullName?.split(' ').slice(1).join(' ') || p.skaterFullName,
         fullName: p.skaterFullName,
         teamAbbrevs: p.teamAbbrevs,
+        playerId: p.playerId,
         value: p[field],
       }
     }
@@ -67,6 +68,7 @@ export async function fetchGoalieLeader() {
       lastName: g.goalieFullName?.split(' ').slice(1).join(' ') || g.goalieFullName,
       fullName: g.goalieFullName,
       teamAbbrevs: g.teamAbbrevs,
+      playerId: g.playerId,
       value: g.goalsAgainstAverage,
     }
   } catch (e) {
@@ -75,11 +77,17 @@ export async function fetchGoalieLeader() {
   }
 }
 
-export async function fetchNHLScores() {
-  try {
-    const data = await nhlFetch('score/now')
-    return data.games || []
-  } catch { return [] }
+export function playerHeadshot(playerId, teamAbbrevs) {
+  if (!playerId || !teamAbbrevs) return null
+  const team = teamAbbrevs.split(',')[0].trim()
+  return `https://assets.nhle.com/mugs/nhl/${seasonId}/${team}/${playerId}.png`
+}
+
+export function todayStr() {
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
 }
 
 // Returns { date, dayAbbrev, numberOfGames, games } for the given day (YYYY-MM-DD, or 'now' for today)
@@ -109,20 +117,13 @@ export async function fetchStandings() {
   }
 }
 
-// Lazy per-game lookup — call only for games a user wants highlights for
-export async function fetchGameHighlights(gameId) {
-  try {
-    const data = await nhlFetch(`gamecenter/${gameId}/right-rail`)
-    const v = data?.gameVideo
-    if (!v) return null
-    return {
-      recap: v.threeMinRecap ? `https://www.nhl.com/video/c-${v.threeMinRecap}` : null,
-      condensed: v.condensedGame ? `https://www.nhl.com/video/c-${v.condensedGame}` : null,
-    }
-  } catch (e) {
-    console.error('fetchGameHighlights:', e)
-    return null
-  }
+// NHL's direct video-id redirect (nhl.com/video/c-{id}) is dead (returns an empty page),
+// so link to the game's real gamecenter page instead — it has the recap embedded.
+export function gamecenterUrl(game, dateStr) {
+  const [y, m, d] = dateStr.split('-')
+  const away = game.awayTeam?.abbrev?.toLowerCase()
+  const home = game.homeTeam?.abbrev?.toLowerCase()
+  return `https://www.nhl.com/gamecenter/${away}-vs-${home}/${y}/${m}/${d}/${game.id}`
 }
 
 export async function fetchESPNNews() {

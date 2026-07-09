@@ -52,14 +52,14 @@ export default function StandingsPage() {
             </thead>
             <tbody>
               {rows.map((t, i) => (
-                <tr key={t.teamAbbrev?.default} style={i === 7 ? s.wildcardLine : undefined}>
+                <tr key={t.teamAbbrev?.default} style={i === 8 ? s.wildcardLine : undefined}>
                   <td style={{ ...s.td, color: 'var(--dim)' }}>{t.conferenceSequence}</td>
                   <td style={{ ...s.td, textAlign: 'left' }}>
                     <div style={s.teamCell}>
                       <img src={t.teamLogo} alt="" style={s.logo} />
                       <div>
                         <div style={s.teamName}>{t.teamCommonName?.default}</div>
-                        <div style={s.teamSub}>{t.divisionName}{t.clinchIndicator ? ` · clinched` : ''}</div>
+                        <div style={s.teamSub}>{t.divisionName}{clinchLabel(t.clinchIndicator)}</div>
                       </div>
                     </div>
                   </td>
@@ -81,6 +81,12 @@ export default function StandingsPage() {
       )}
     </div>
   )
+}
+
+function clinchLabel(code) {
+  if (!code) return ''
+  if (code === 'e') return ' · eliminated'
+  return ' · clinched'
 }
 
 const s = {

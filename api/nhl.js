@@ -16,14 +16,13 @@ export default async function handler(req, res) {
     'score/now',
     'schedule/',
     'standings/',
-    'gamecenter/',
   ]
 
   const isAllowed = allowed.some(a => endpoint.startsWith(a))
   if (!isAllowed) return res.status(403).json({ error: 'Endpoint not allowed' })
 
   try {
-    const isWebApi = endpoint.startsWith('score/') || endpoint.startsWith('schedule/') || endpoint.startsWith('standings/') || endpoint.startsWith('gamecenter/')
+    const isWebApi = endpoint.startsWith('score/') || endpoint.startsWith('schedule/') || endpoint.startsWith('standings/')
     const base = isWebApi ? NHL_WEB : NHL_STATS
     const params = req.query
     delete params.endpoint
