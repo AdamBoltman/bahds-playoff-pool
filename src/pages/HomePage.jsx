@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabase.js'
 import {
   fetchSkaterLeaders, fetchGoalieLeaders, fetchESPNNews, timeAgo,
   isPlayoffs, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
-  fetchStandings, fetchSeasonInfo,
+  fetchStandings, fetchSeasonInfo, fetchPlayerLanding,
 } from '../lib/nhl.js'
 import { useAuth } from '../hooks/useAuth.jsx'
+import PlayerCard from '../components/PlayerCard.jsx'
 
 export default function HomePage() {
   const { user, isAdmin } = useAuth()
@@ -29,6 +30,8 @@ export default function HomePage() {
   const [noteInput, setNoteInput] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [spotlight, setSpotlight] = useState(null)
+  const [openPlayerId, setOpenPlayerId] = useState(null)
 
   useEffect(() => {
     if (playoffs) loadLeaderboard()
@@ -61,6 +64,8 @@ export default function HomePage() {
     setLeaders(s)
     setGoalies(g)
     setStatsLoading(false)
+    const topId = s?.points?.[0]?.playerId
+    if (topId) fetchPlayerLanding(topId).then(setSpotlight)
   }
 
   async function loadNews() {
@@ -162,6 +167,23 @@ export default function HomePage() {
         </div>
       ))}
 
+      {/* Spotlight — points leader, the year-round visual anchor */}
+      {!playoffs && spotlight && (
+        <div style={{ ...s.spotlight, backgroundImage: `url(${spotlight.heroImage})` }} className="hover-lift"
+          onClick={() => setOpenPlayerId(spotlight.playerId)}>
+          <div style={s.spotlightScrim} />
+          <div style={s.spotlightContent}>
+            <div style={s.spotlightTag}>🏒 League Points Leader</div>
+            <div style={s.spotlightName}>{spotlight.firstName?.default} {spotlight.lastName?.default}</div>
+            <div style={s.spotlightSub}>
+              {spotlight.fullTeamName?.default} · {spotlight.featuredStats?.regularSeason?.subSeason?.points} PTS
+              ({spotlight.featuredStats?.regularSeason?.subSeason?.goals}G {spotlight.featuredStats?.regularSeason?.subSeason?.assists}A)
+            </div>
+            <div style={s.spotlightHint}>Tap for player card ›</div>
+          </div>
+        </div>
+      )}
+
       {/* Season countdown — shown only in the true off-season */}
       {showSeasonBanner && (
         <div style={s.seasonBanner}>
@@ -192,10 +214,10 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="leader-grid stagger">
-              <LeaderCard label="Goals" players={leaders?.goals} unit="G" accent="var(--red)" />
-              <LeaderCard label="Points" players={leaders?.points} unit="PTS" accent="var(--info)" />
-              <LeaderCard label="Assists" players={leaders?.assists} unit="A" accent="var(--info)" />
-              <LeaderCard label="GAA" players={goalies} unit="GAA" accent="var(--success)" decimals={2} />
+              <LeaderCard label="Goals" players={leaders?.goals} unit="G" accent="var(--red)" onPick={setOpenPlayerId} />
+              <LeaderCard label="Points" players={leaders?.points} unit="PTS" accent="var(--info)" onPick={setOpenPlayerId} />
+              <LeaderCard label="Assists" players={leaders?.assists} unit="A" accent="var(--info)" onPick={setOpenPlayerId} />
+              <LeaderCard label="GAA" players={goalies} unit="GAA" accent="var(--success)" decimals={2} onPick={setOpenPlayerId} />
             </div>
           )}
 
@@ -204,16 +226,24 @@ export default function HomePage() {
             <>
               <div className="section-label" style={{ marginTop: 28 }}>Division Leaders</div>
               <div style={s.divGrid} className="stagger">
-                {divisionLeaders.map(t => (
-                  <div key={t.teamAbbrev?.default} className="card" style={s.divCard}>
-                    <img src={t.teamLogo} alt="" style={s.divLogo} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={s.divName}>{t.teamCommonName?.default}</div>
-                      <div style={s.divSub}>{t.divisionName}</div>
+                {divisionLeaders.map(t => {
+                  const maxPts = Math.max(...divisionLeaders.map(d => d.points))
+                  return (
+                    <div key={t.teamAbbrev?.default} className="card" style={{ padding: '10px 14px' }}>
+                      <div style={s.divCard}>
+                        <img src={t.teamLogo} alt="" style={s.divLogo} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={s.divName}>{t.teamCommonName?.default}</div>
+                          <div style={s.divSub}>{t.divisionName}</div>
+                        </div>
+                        <div style={s.divPts}>{t.points}<span style={s.divPtsLabel}>PTS</span></div>
+                      </div>
+                      <div className="pace-track">
+                        <div className="pace-fill" style={{ width: `${(t.points / maxPts) * 100}%` }} />
+                      </div>
                     </div>
-                    <div style={s.divPts}>{t.points}<span style={s.divPtsLabel}>PTS</span></div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
               <Link to="/standings" style={s.seeMore}>See full standings ›</Link>
             </>
@@ -263,7 +293,7 @@ export default function HomePage() {
                 {finishedLastNight.map(g => {
                   const home = g.homeTeam || {}, away = g.awayTeam || {}
                   return (
-                    <a key={g.id} href={gamecenterUrl(g, lastNight.date)} target="_blank" rel="noopener noreferrer" style={s.hlItem}>
+                    <a key={g.id} href={gamecenterUrl(g, lastNight.date)} target="_blank" rel="noopener noreferrer" className="hover-lift" style={s.hlItem}>
                       <div style={s.hlTeams}>
                         {away.logo && <img src={away.darkLogo || away.logo} alt="" style={s.hlLogo} />}
                         <span style={s.hlScore}>{away.score}</span>
@@ -298,7 +328,7 @@ export default function HomePage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="stagger">
               {news.map((a, i) => (
-                <a key={i} href={a.link} target="_blank" rel="noopener noreferrer" style={s.newsItem}>
+                <a key={i} href={a.link} target="_blank" rel="noopener noreferrer" className="hover-lift" style={s.newsItem}>
                   <div style={s.newsDot} />
                   <div style={{ flex: 1 }}>
                     <div style={s.newsSrc}>{a.source}</div>
@@ -312,17 +342,23 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      {openPlayerId && <PlayerCard playerId={openPlayerId} onClose={() => setOpenPlayerId(null)} />}
     </div>
   )
 }
 
-function LeaderCard({ label, players, unit, accent, decimals = 0 }) {
+function LeaderCard({ label, players, unit, accent, decimals = 0, onPick }) {
   const top = players?.[0]
   const rest = players?.slice(1, 5) || []
   const headshot = top ? playerHeadshot(top.playerId, top.teamAbbrevs) : null
   return (
     <div className="card" style={{ borderTop: `3px solid ${accent}`, padding: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+      <div
+        className={top ? 'hover-lift' : ''}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, borderRadius: 8, margin: -4, padding: 4 }}
+        onClick={() => top && onPick(top.playerId)}
+      >
         {headshot ? (
           <img src={headshot} alt="" style={s.leaderAvatar} onError={e => { e.target.style.display = 'none' }} />
         ) : (
@@ -341,7 +377,7 @@ function LeaderCard({ label, players, unit, accent, decimals = 0 }) {
       {rest.length > 0 && (
         <div style={s.leaderRest}>
           {rest.map((p, i) => (
-            <div key={i} style={s.leaderRestRow}>
+            <div key={i} className="hover-lift" style={{ ...s.leaderRestRow, borderRadius: 6, padding: '0 4px', margin: '0 -4px' }} onClick={() => onPick(p.playerId)}>
               <span style={s.leaderRestRank}>{i + 2}</span>
               <span style={s.leaderRestName}>{p.lastName}</span>
               <span style={s.leaderRestValue}>{Number(p.value || 0).toFixed(decimals)}</span>
@@ -381,6 +417,22 @@ const s = {
     textAlign: 'center', marginBottom: 24,
     boxShadow: 'var(--shadow-md)',
   },
+  spotlight: {
+    height: 220, borderRadius: 16, marginBottom: 24,
+    backgroundSize: 'cover', backgroundPosition: 'center 15%',
+    position: 'relative', overflow: 'hidden',
+    border: '1px solid rgba(45,226,230,0.25)',
+    boxShadow: 'var(--shadow-md), 0 0 32px var(--ice-glow)',
+  },
+  spotlightScrim: {
+    position: 'absolute', inset: 0,
+    background: 'linear-gradient(90deg, rgba(15,17,23,0.95) 15%, rgba(15,17,23,0.55) 55%, rgba(15,17,23,0.15) 100%)',
+  },
+  spotlightContent: { position: 'absolute', left: 24, bottom: 20, right: 24 },
+  spotlightTag: { fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--ice)', marginBottom: 6 },
+  spotlightName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 38, fontWeight: 700, color: 'var(--text)', lineHeight: 1 },
+  spotlightSub: { fontSize: 14, color: 'var(--muted)', marginTop: 6 },
+  spotlightHint: { fontSize: 11, color: 'var(--ice)', marginTop: 10, fontWeight: 600 },
   seasonBanner: {
     background: 'linear-gradient(135deg, rgba(200,16,46,0.12), rgba(200,16,46,0.03))',
     border: '1px solid rgba(200,16,46,0.25)',
@@ -403,7 +455,7 @@ const s = {
   leaderRestName: { color: 'var(--muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   leaderRestValue: { color: 'var(--text)', fontWeight: 600 },
   divGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 },
-  divCard: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' },
+  divCard: { display: 'flex', alignItems: 'center', gap: 10 },
   divLogo: { width: 30, height: 30, objectFit: 'contain', flexShrink: 0 },
   divName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   divSub: { fontSize: 11, color: 'var(--dim)' },

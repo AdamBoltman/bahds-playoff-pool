@@ -76,7 +76,7 @@ export default function SchedulePage() {
                 </div>
                 {isFinal && (
                   <div style={s.hlRow}>
-                    <a href={gamecenterUrl(g, day.date)} target="_blank" rel="noopener noreferrer" style={s.hlBtn}>
+                    <a href={gamecenterUrl(g, day.date)} target="_blank" rel="noopener noreferrer" className="hover-lift" style={s.hlBtn}>
                       ▶ Watch recap
                     </a>
                   </div>

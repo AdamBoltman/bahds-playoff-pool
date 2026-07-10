@@ -16,6 +16,11 @@
   --border2:  rgba(255,255,255,0.14);
   --success:  #2FBE8F;
   --info:     #4EA1F5;
+  /* Secondary accent — reserved for data/premium/interactive signals.
+     Red stays reserved for live/urgent so the two don't compete. */
+  --ice:      #2DE2E6;
+  --ice2:     #1AB8BD;
+  --ice-glow: rgba(45,226,230,0.35);
   --shadow:   0 1px 4px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.25);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.4), 0 4px 24px rgba(0,0,0,0.35);
 }
@@ -62,6 +67,49 @@ input, textarea, select { font-family: 'Barlow', sans-serif; }
 }
 .card:hover {
   box-shadow: var(--shadow-md);
+}
+
+/* Interactive/clickable rows and cards — ice glow signals "data" affordance */
+.hover-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  border-color: rgba(45,226,230,0.35);
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--ice-glow);
+}
+
+/* Points-pace bars (standings, division snapshot) */
+.pace-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface2);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.pace-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ice2), var(--ice));
+}
+
+/* Player profile modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(4,5,8,0.72);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 500;
+  animation: fadeIn 0.15s ease;
+}
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 18px;
+  width: 100%; max-width: 460px; max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md), 0 0 48px var(--ice-glow);
+  animation: slideUp 0.25s ease both;
 }
 
 /* Page wrap */

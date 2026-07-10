@@ -57,6 +57,7 @@ export default function StandingsPage() {
 }
 
 function DivisionTable({ teams, cutoff, showForm }) {
+  const maxPts = Math.max(...teams.map(t => t.points), 1)
   return (
     <div className="card" style={{ padding: 0, overflowX: 'auto', marginBottom: 20 }}>
       <table style={s.table}>
@@ -90,7 +91,12 @@ function DivisionTable({ teams, cutoff, showForm }) {
               <td style={s.td}>{t.wins}</td>
               <td style={s.td}>{t.losses}</td>
               <td style={s.td}>{t.otLosses}</td>
-              <td style={{ ...s.td, fontWeight: 700, color: 'var(--text)' }}>{t.points}</td>
+              <td style={{ ...s.td, fontWeight: 700, color: 'var(--text)' }}>
+                {t.points}
+                <div className="pace-track" style={{ width: 34, margin: '4px auto 0' }}>
+                  <div className="pace-fill" style={{ width: `${(t.points / maxPts) * 100}%` }} />
+                </div>
+              </td>
               {showForm && <td style={s.td}>{t.l10Wins}-{t.l10Losses}-{t.l10OtLosses}</td>}
               {showForm && <td style={s.td}>{t.streakCode}{t.streakCount}</td>}
             </tr>

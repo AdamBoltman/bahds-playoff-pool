@@ -114,6 +114,15 @@ export function shiftDate(dateStr, days) {
   return d.toISOString().slice(0, 10)
 }
 
+export async function fetchPlayerLanding(playerId) {
+  try {
+    return await nhlFetch(`player/${playerId}/landing`)
+  } catch (e) {
+    console.error('fetchPlayerLanding:', e)
+    return null
+  }
+}
+
 export async function fetchStandings() {
   try {
     const data = await nhlFetch('standings/now')
