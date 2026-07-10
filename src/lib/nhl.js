@@ -16,11 +16,11 @@ async function nhlFetch(endpoint, params = {}) {
   return res.json()
 }
 
-export async function fetchSkaterLeaders() {
+export async function fetchSkaterLeaders(limit = 5) {
   try {
     const gt = gameTypeId()
     const cayenne = `gameTypeId=${gt} and seasonId<=${seasonId} and seasonId>=${seasonId}`
-    const base = { isAggregate: 'false', isGame: 'false', start: '0', limit: '1', factCayenneExp: 'gamesPlayed>=1', cayenneExp: cayenne }
+    const base = { isAggregate: 'false', isGame: 'false', start: '0', limit: String(limit), factCayenneExp: 'gamesPlayed>=1', cayenneExp: cayenne }
 
     const [goalsData, pointsData, assistsData] = await Promise.all([
       nhlFetch('skater/summary', { ...base, sort: `[{"property":"goals","direction":"DESC"}]` }),
@@ -29,15 +29,13 @@ export async function fetchSkaterLeaders() {
     ])
 
     function parse(data, field) {
-      const p = data?.data?.[0]
-      if (!p) return null
-      return {
+      return (data?.data || []).map(p => ({
         lastName: p.skaterFullName?.split(' ').slice(1).join(' ') || p.skaterFullName,
         fullName: p.skaterFullName,
         teamAbbrevs: p.teamAbbrevs,
         playerId: p.playerId,
         value: p[field],
-      }
+      }))
     }
 
     return {
@@ -48,32 +46,30 @@ export async function fetchSkaterLeaders() {
     }
   } catch (e) {
     console.error('fetchSkaterLeaders:', e)
-    return { goals: null, points: null, assists: null, isPlayoffs: false }
+    return { goals: [], points: [], assists: [], isPlayoffs: false }
   }
 }
 
-export async function fetchGoalieLeader() {
+export async function fetchGoalieLeaders(limit = 5) {
   try {
     const gt = gameTypeId()
     const cayenne = `gameTypeId=${gt} and seasonId<=${seasonId} and seasonId>=${seasonId}`
     const data = await nhlFetch('goalie/summary', {
-      isAggregate: 'false', isGame: 'false', start: '0', limit: '1',
+      isAggregate: 'false', isGame: 'false', start: '0', limit: String(limit),
       factCayenneExp: 'gamesPlayed>=10',
       cayenneExp: cayenne,
       sort: `[{"property":"goalsAgainstAverage","direction":"ASC"}]`,
     })
-    const g = data?.data?.[0]
-    if (!g) return null
-    return {
+    return (data?.data || []).map(g => ({
       lastName: g.goalieFullName?.split(' ').slice(1).join(' ') || g.goalieFullName,
       fullName: g.goalieFullName,
       teamAbbrevs: g.teamAbbrevs,
       playerId: g.playerId,
       value: g.goalsAgainstAverage,
-    }
+    }))
   } catch (e) {
-    console.error('fetchGoalieLeader:', e)
-    return null
+    console.error('fetchGoalieLeaders:', e)
+    return []
   }
 }
 
@@ -97,6 +93,17 @@ export async function fetchScheduleDay(date = 'now') {
     return data.gameWeek?.[0] || null
   } catch (e) {
     console.error('fetchScheduleDay:', e)
+    return null
+  }
+}
+
+// Off-season only: tells us when the next regular season starts, once the NHL has published it
+export async function fetchSeasonInfo() {
+  try {
+    const data = await nhlFetch('schedule/now')
+    return { regularSeasonStartDate: data.regularSeasonStartDate }
+  } catch (e) {
+    console.error('fetchSeasonInfo:', e)
     return null
   }
 }

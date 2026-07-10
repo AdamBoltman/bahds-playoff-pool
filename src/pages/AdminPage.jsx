@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, ROUNDS } from '../lib/supabase.js'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { calculateScore } from '../lib/scoring.js'
+import { isPlayoffs } from '../lib/nhl.js'
 import { useNavigate } from 'react-router-dom'
 
 const ALL_MATCHUPS = ROUNDS.flatMap(r => r.matchups.map(m => ({ ...m, round: r.id })))
@@ -45,7 +46,8 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false)
   const [recalcing, setRecalcing] = useState(false)
   const [msg, setMsg] = useState('')
-  const [activeTab, setActiveTab] = useState('matchups')
+  const playoffs = isPlayoffs()
+  const [activeTab, setActiveTab] = useState(playoffs ? 'matchups' : 'users')
 
   useEffect(() => {
     if (!isAdmin) { navigate('/'); return }
@@ -188,12 +190,20 @@ export default function AdminPage() {
 
   if (!isAdmin) return null
 
-  const tabs = ['matchups', 'results', 'scores', 'manual', 'reset', 'users']
+  const tabs = playoffs ? ['matchups', 'results', 'scores', 'manual', 'reset', 'users'] : ['users']
   const tabLabels = { matchups: 'Edit Matchups', results: 'Enter Results', scores: 'Live Scores', manual: '✏️ Edit Scores', reset: '🔄 Reset Picks', users: 'Manage Users' }
 
   return (
     <div className="page-wrap fade-up">
       <div style={s.adminBanner}>&#9881; Admin Panel — only visible to you</div>
+
+      {!playoffs && (
+        <div style={s.offSeasonNote}>
+          Pool tools (matchups, results, scoring) unlock once playoffs start — nothing to set up right now.
+          Auto-updating results/scoring straight from the NHL API is planned for before then, so this should
+          need a lot less manual entry next time around.
+        </div>
+      )}
 
       <div style={s.tabs}>
         {tabs.map(t => (
@@ -682,6 +692,7 @@ function UserRow({ user, onSave, s }) {
 
 const s = {
   adminBanner: { background: '#FFF8E1', border: '1px solid rgba(212,168,0,0.25)', borderRadius: 8, padding: '10px 16px', fontSize: 13, color: '#B8900A', marginBottom: 20 },
+  offSeasonNote: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#9CAAB8', marginBottom: 20, lineHeight: 1.6 },
   tabs: { display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' },
   tab: { padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 500, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#6B7A8D', cursor: 'pointer' },
   tabActive: { background: '#C8102E', borderColor: '#C8102E', color: '#041E42' },

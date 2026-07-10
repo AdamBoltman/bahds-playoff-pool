@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import {
-  fetchSkaterLeaders, fetchGoalieLeader, fetchESPNNews, timeAgo,
+  fetchSkaterLeaders, fetchGoalieLeaders, fetchESPNNews, timeAgo,
   isPlayoffs, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
+  fetchStandings, fetchSeasonInfo,
 } from '../lib/nhl.js'
 import { useAuth } from '../hooks/useAuth.jsx'
 
@@ -15,11 +17,13 @@ export default function HomePage() {
   const [isTied, setIsTied] = useState(false)
   const [playerCount, setPlayerCount] = useState(null)
   const [leaders, setLeaders] = useState(null)
-  const [goalie, setGoalie] = useState(null)
+  const [goalies, setGoalies] = useState([])
   const [news, setNews] = useState([])
   const [newsLoading, setNewsLoading] = useState(true)
   const [today, setToday] = useState(null)
   const [lastNight, setLastNight] = useState(null)
+  const [seasonInfo, setSeasonInfo] = useState(null)
+  const [divisionLeaders, setDivisionLeaders] = useState([])
   const [commNote, setCommNote] = useState('')
   const [editingNote, setEditingNote] = useState(false)
   const [noteInput, setNoteInput] = useState('')
@@ -32,6 +36,7 @@ export default function HomePage() {
     loadNews()
     loadGames()
     loadCommNote()
+    loadStandingsSnapshot()
   }, [])
 
   async function loadLeaderboard() {
@@ -52,9 +57,9 @@ export default function HomePage() {
 
   async function loadStats() {
     setStatsLoading(true)
-    const [s, g] = await Promise.all([fetchSkaterLeaders(), fetchGoalieLeader()])
+    const [s, g] = await Promise.all([fetchSkaterLeaders(5), fetchGoalieLeaders(5)])
     setLeaders(s)
-    setGoalie(g)
+    setGoalies(g)
     setStatsLoading(false)
   }
 
@@ -66,9 +71,15 @@ export default function HomePage() {
 
   async function loadGames() {
     const t = todayStr()
-    const [t0, y0] = await Promise.all([fetchScheduleDay(t), fetchScheduleDay(shiftDate(t, -1))])
+    const [t0, y0, season] = await Promise.all([fetchScheduleDay(t), fetchScheduleDay(shiftDate(t, -1)), fetchSeasonInfo()])
     setToday(t0)
     setLastNight(y0)
+    setSeasonInfo(season)
+  }
+
+  async function loadStandingsSnapshot() {
+    const data = await fetchStandings()
+    setDivisionLeaders(data.filter(t => t.divisionSequence === 1).sort((a, b) => b.points - a.points))
   }
 
   async function loadCommNote() {
@@ -86,6 +97,11 @@ export default function HomePage() {
   const isLeading = behindBy === 0 && myRank === 1
   const todayGames = today?.games || []
   const finishedLastNight = (lastNight?.games || []).filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF')
+
+  const daysToSeason = seasonInfo?.regularSeasonStartDate
+    ? Math.ceil((new Date(`${seasonInfo.regularSeasonStartDate}T00:00:00Z`) - new Date()) / 86400000)
+    : null
+  const showSeasonBanner = !playoffs && todayGames.length === 0 && finishedLastNight.length === 0
 
   return (
     <div className="page-wrap fade-up">
@@ -146,6 +162,17 @@ export default function HomePage() {
         </div>
       ))}
 
+      {/* Season countdown — shown only in the true off-season */}
+      {showSeasonBanner && (
+        <div style={s.seasonBanner}>
+          {daysToSeason > 0 ? (
+            <>🏒 Puck drop in <strong>{daysToSeason} day{daysToSeason === 1 ? '' : 's'}</strong> — regular season starts {new Date(`${seasonInfo.regularSeasonStartDate}T00:00:00Z`).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</>
+          ) : (
+            <>🏒 Off-season — the schedule for next season isn't out yet. Check back this fall.</>
+          )}
+        </div>
+      )}
+
       <div className="home-grid">
         <div className="home-main">
 
@@ -165,11 +192,31 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="leader-grid stagger">
-              <LeaderCard label="Goals" player={leaders?.goals} unit="G" accent="var(--red)" />
-              <LeaderCard label="Points" player={leaders?.points} unit="PTS" accent="var(--info)" />
-              <LeaderCard label="Assists" player={leaders?.assists} unit="A" accent="var(--info)" />
-              <LeaderCard label="GAA" player={goalie} unit="GAA" accent="var(--success)" decimals={2} />
+              <LeaderCard label="Goals" players={leaders?.goals} unit="G" accent="var(--red)" />
+              <LeaderCard label="Points" players={leaders?.points} unit="PTS" accent="var(--info)" />
+              <LeaderCard label="Assists" players={leaders?.assists} unit="A" accent="var(--info)" />
+              <LeaderCard label="GAA" players={goalies} unit="GAA" accent="var(--success)" decimals={2} />
             </div>
+          )}
+
+          {/* Division leaders snapshot */}
+          {divisionLeaders.length > 0 && (
+            <>
+              <div className="section-label" style={{ marginTop: 28 }}>Division Leaders</div>
+              <div style={s.divGrid} className="stagger">
+                {divisionLeaders.map(t => (
+                  <div key={t.teamAbbrev?.default} className="card" style={s.divCard}>
+                    <img src={t.teamLogo} alt="" style={s.divLogo} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={s.divName}>{t.teamCommonName?.default}</div>
+                      <div style={s.divSub}>{t.divisionName}</div>
+                    </div>
+                    <div style={s.divPts}>{t.points}<span style={s.divPtsLabel}>PTS</span></div>
+                  </div>
+                ))}
+              </div>
+              <Link to="/standings" style={s.seeMore}>See full standings ›</Link>
+            </>
           )}
 
           {/* Today's games */}
@@ -269,24 +316,39 @@ export default function HomePage() {
   )
 }
 
-function LeaderCard({ label, player, unit, accent, decimals = 0 }) {
-  const headshot = player ? playerHeadshot(player.playerId, player.teamAbbrevs) : null
+function LeaderCard({ label, players, unit, accent, decimals = 0 }) {
+  const top = players?.[0]
+  const rest = players?.slice(1, 5) || []
+  const headshot = top ? playerHeadshot(top.playerId, top.teamAbbrevs) : null
   return (
-    <div className="card" style={{ borderTop: `3px solid ${accent}`, padding: 14, textAlign: 'center' }}>
-      <div style={s.leaderAvatarWrap}>
+    <div className="card" style={{ borderTop: `3px solid ${accent}`, padding: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         {headshot ? (
           <img src={headshot} alt="" style={s.leaderAvatar} onError={e => { e.target.style.display = 'none' }} />
         ) : (
           <div style={{ ...s.leaderAvatar, background: 'var(--surface2)' }} />
         )}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: 'var(--dim)', letterSpacing: 0.5 }}>{label} leader</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>
+            {top?.lastName || '—'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+            {top ? `${top.teamAbbrevs?.split(',')[0]} · ${Number(top.value || 0).toFixed(decimals)} ${unit}` : 'Loading...'}
+          </div>
+        </div>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--dim)', letterSpacing: 0.5, marginBottom: 2 }}>{label} leader</div>
-      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 19, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>
-        {player?.lastName || '—'}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
-        {player ? `${player.teamAbbrevs?.split(',')[0]} · ${Number(player.value || 0).toFixed(decimals)} ${unit}` : 'Loading...'}
-      </div>
+      {rest.length > 0 && (
+        <div style={s.leaderRest}>
+          {rest.map((p, i) => (
+            <div key={i} style={s.leaderRestRow}>
+              <span style={s.leaderRestRank}>{i + 2}</span>
+              <span style={s.leaderRestName}>{p.lastName}</span>
+              <span style={s.leaderRestValue}>{Number(p.value || 0).toFixed(decimals)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -319,6 +381,12 @@ const s = {
     textAlign: 'center', marginBottom: 24,
     boxShadow: 'var(--shadow-md)',
   },
+  seasonBanner: {
+    background: 'linear-gradient(135deg, rgba(200,16,46,0.12), rgba(200,16,46,0.03))',
+    border: '1px solid rgba(200,16,46,0.25)',
+    borderRadius: 12, padding: '14px 18px', marginBottom: 24,
+    fontSize: 14, color: 'var(--text)', textAlign: 'center',
+  },
   heroSub: { fontSize: 11, color: 'var(--dim)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 },
   heroName: {
     fontFamily: "'Barlow Condensed',sans-serif",
@@ -328,8 +396,20 @@ const s = {
   heroRight: { textAlign: 'right' },
   heroRank: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 32, fontWeight: 700, color: 'var(--text)' },
   heroPts: { fontSize: 13, color: 'var(--dim)', marginTop: 4 },
-  leaderAvatarWrap: { display: 'flex', justifyContent: 'center', marginBottom: 8 },
-  leaderAvatar: { width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', background: 'var(--surface2)' },
+  leaderAvatar: { width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', background: 'var(--surface2)', flexShrink: 0 },
+  leaderRest: { borderTop: '1px solid var(--border)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 },
+  leaderRestRow: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 },
+  leaderRestRank: { color: 'var(--dim)', width: 14, flexShrink: 0 },
+  leaderRestName: { color: 'var(--muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  leaderRestValue: { color: 'var(--text)', fontWeight: 600 },
+  divGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 },
+  divCard: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' },
+  divLogo: { width: 30, height: 30, objectFit: 'contain', flexShrink: 0 },
+  divName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  divSub: { fontSize: 11, color: 'var(--dim)' },
+  divPts: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)', flexShrink: 0 },
+  divPtsLabel: { fontSize: 9, color: 'var(--dim)', marginLeft: 3, fontFamily: "'Barlow',sans-serif" },
+  seeMore: { display: 'inline-block', marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--info)', textDecoration: 'none' },
   gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8 },
   hlItem: {
     background: 'var(--surface)', border: '1px solid var(--border)',
