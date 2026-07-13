@@ -1,15 +1,29 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { fetchPlayerLanding } from '../lib/nhl.js'
+import { fetchPlayerLanding, fetchOpponentSplits } from '../lib/nhl.js'
 
 export default function PlayerCard({ playerId, onClose }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showSplits, setShowSplits] = useState(false)
+  const [splits, setSplits] = useState(null)
+  const [splitsLoading, setSplitsLoading] = useState(false)
 
   useEffect(() => {
     setLoading(true)
+    setShowSplits(false); setSplits(null)
     fetchPlayerLanding(playerId).then(d => { setData(d); setLoading(false) })
   }, [playerId])
+
+  async function toggleSplits() {
+    if (!showSplits && !splits) {
+      setSplitsLoading(true)
+      const result = await fetchOpponentSplits(playerId, data.seasonTotals)
+      setSplits(result)
+      setSplitsLoading(false)
+    }
+    setShowSplits(v => !v)
+  }
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
@@ -21,6 +35,10 @@ export default function PlayerCard({ playerId, onClose }) {
   const season = data?.featuredStats?.regularSeason?.subSeason
   const career = data?.careerTotals?.regularSeason
   const last5 = data?.last5Games || []
+  // Retired players have no current team — fall back to their most recent team from game logs
+  const lastTeamAbbrev = data?.last5Games?.[0]?.teamAbbrev
+  const teamLogoUrl = data?.teamLogo || (lastTeamAbbrev ? `https://assets.nhle.com/logos/nhl/svg/${lastTeamAbbrev}_light.svg` : null)
+  const teamLabel = data?.fullTeamName?.default || (lastTeamAbbrev ? `Last played ${lastTeamAbbrev}` : null)
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
@@ -42,9 +60,9 @@ export default function PlayerCard({ playerId, onClose }) {
               <div style={s.bannerScrim} />
               <button style={s.closeBtn} onClick={onClose}>✕</button>
               <div style={s.bannerContent}>
-                <img src={data.teamLogo} alt="" style={s.teamLogo} />
+                {teamLogoUrl && <img src={teamLogoUrl} alt="" style={s.teamLogo} />}
                 <div style={s.name}>{data.firstName?.default} {data.lastName?.default}</div>
-                <div style={s.sub}>{data.fullTeamName?.default} · {isGoalie ? 'Goalie' : data.position} #{data.sweaterNumber}</div>
+                <div style={s.sub}>{teamLabel ? `${teamLabel} · ` : ''}{isGoalie ? 'Goalie' : data.position} #{data.sweaterNumber}</div>
               </div>
             </div>
 
@@ -105,6 +123,44 @@ export default function PlayerCard({ playerId, onClose }) {
                   </div>
                 </>
               )}
+
+              {!isGoalie && (
+                <>
+                  <button style={s.splitsBtn} onClick={toggleSplits}>
+                    {showSplits ? '▾' : '▸'} Career vs opponent
+                  </button>
+                  {showSplits && (
+                    splitsLoading ? (
+                      <div style={{ padding: '12px 0' }}>
+                        <div className="skeleton skeleton-text" />
+                        <div className="skeleton skeleton-text" style={{ width: '70%' }} />
+                      </div>
+                    ) : (
+                      <div style={s.splitsTable}>
+                        <div style={s.splitsHeader}>
+                          <span style={{ flex: 1 }}>Team</span>
+                          <span style={s.splitsCol}>GP</span>
+                          <span style={s.splitsCol}>G</span>
+                          <span style={s.splitsCol}>A</span>
+                          <span style={s.splitsCol}>PTS</span>
+                        </div>
+                        {splits?.map(row => (
+                          <div key={row.opponent} style={s.splitsRow}>
+                            <span style={s.splitsTeam}>
+                              <img src={`https://assets.nhle.com/logos/nhl/svg/${row.opponent}_dark.svg`} alt="" style={s.splitsLogo} />
+                              {row.opponent}
+                            </span>
+                            <span style={s.splitsCol}>{row.gamesPlayed}</span>
+                            <span style={s.splitsCol}>{row.goals}</span>
+                            <span style={s.splitsCol}>{row.assists}</span>
+                            <span style={{ ...s.splitsCol, color: 'var(--ice)', fontWeight: 700 }}>{row.points}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  )}
+                </>
+              )}
             </div>
           </>
         )}
@@ -162,4 +218,21 @@ const s = {
   },
   gameOpp: { color: 'var(--muted)', fontWeight: 600 },
   gameLine: { color: 'var(--text)' },
+  splitsBtn: {
+    background: 'transparent', border: '1px solid var(--border2)', borderRadius: 8,
+    padding: '8px 14px', fontSize: 12, fontWeight: 600, color: 'var(--ice)', cursor: 'pointer',
+    marginTop: 16, width: '100%', textAlign: 'left',
+  },
+  splitsTable: { marginTop: 10, maxHeight: 220, overflowY: 'auto' },
+  splitsHeader: {
+    display: 'flex', fontSize: 10, color: 'var(--dim)', letterSpacing: 0.5, textTransform: 'uppercase',
+    padding: '0 0 6px', borderBottom: '1px solid var(--border)',
+  },
+  splitsRow: {
+    display: 'flex', alignItems: 'center', fontSize: 12, color: 'var(--muted)',
+    padding: '6px 0', borderBottom: '1px solid var(--border)',
+  },
+  splitsTeam: { flex: 1, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text)', fontWeight: 600 },
+  splitsLogo: { width: 16, height: 16, objectFit: 'contain' },
+  splitsCol: { width: 34, textAlign: 'center', flexShrink: 0 },
 }

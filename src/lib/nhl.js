@@ -73,6 +73,68 @@ export async function fetchGoalieLeaders(limit = 5) {
   }
 }
 
+// Omitting the `active` param returns both active and retired players in one call
+export async function searchPlayers(query, limit = 12) {
+  const q = query?.trim()
+  if (!q || q.length < 2) return []
+  try {
+    const data = await nhlFetch('search/player', { culture: 'en-us', limit: String(limit), q })
+    return Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('searchPlayers:', e)
+    return []
+  }
+}
+
+export async function fetchRoster(teamAbbrev) {
+  try {
+    return await nhlFetch(`roster/${teamAbbrev}/current`)
+  } catch (e) {
+    console.error('fetchRoster:', e)
+    return null
+  }
+}
+
+export async function fetchTeamSchedule(teamAbbrev) {
+  try {
+    const data = await nhlFetch(`club-schedule-season/${teamAbbrev}/now`)
+    return data.games || []
+  } catch (e) {
+    console.error('fetchTeamSchedule:', e)
+    return []
+  }
+}
+
+export async function fetchPlayerGameLog(playerId, season, gameType) {
+  try {
+    const data = await nhlFetch(`player/${playerId}/game-log/${season}/${gameType}`)
+    return data.gameLog || []
+  } catch (e) {
+    console.error('fetchPlayerGameLog:', e)
+    return []
+  }
+}
+
+// Aggregates a player's full NHL career game logs by opponent (goals/assists/points/GP).
+// Heavy (one request per NHL season+gameType) — call on demand, not eagerly.
+export async function fetchOpponentSplits(playerId, seasonTotals) {
+  const nhlSeasons = (seasonTotals || []).filter(s => s.leagueAbbrev === 'NHL')
+  const logs = await Promise.all(
+    nhlSeasons.map(s => fetchPlayerGameLog(playerId, s.season, s.gameTypeId))
+  )
+  const byOpponent = {}
+  logs.flat().forEach(g => {
+    const opp = g.opponentAbbrev
+    if (!opp) return
+    if (!byOpponent[opp]) byOpponent[opp] = { opponent: opp, gamesPlayed: 0, goals: 0, assists: 0, points: 0 }
+    byOpponent[opp].gamesPlayed += 1
+    byOpponent[opp].goals += g.goals || 0
+    byOpponent[opp].assists += g.assists || 0
+    byOpponent[opp].points += g.points || 0
+  })
+  return Object.values(byOpponent).sort((a, b) => b.points - a.points)
+}
+
 export function playerHeadshot(playerId, teamAbbrevs) {
   if (!playerId || !teamAbbrevs) return null
   const team = teamAbbrevs.split(',')[0].trim()

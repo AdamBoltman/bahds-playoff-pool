@@ -8,6 +8,7 @@ export default async function handler(req, res) {
 
   const NHL_STATS = 'https://api.nhle.com/stats/rest/en'
   const NHL_WEB = 'https://api-web.nhle.com/v1'
+  const NHL_SEARCH = 'https://search.d3.nhle.com/api/v1'
 
   // Only allow specific safe endpoints
   const allowed = [
@@ -17,14 +18,19 @@ export default async function handler(req, res) {
     'schedule/',
     'standings/',
     'player/',
+    'roster/',
+    'club-schedule-season/',
+    'search/player',
   ]
 
   const isAllowed = allowed.some(a => endpoint.startsWith(a))
   if (!isAllowed) return res.status(403).json({ error: 'Endpoint not allowed' })
 
   try {
-    const isWebApi = endpoint.startsWith('score/') || endpoint.startsWith('schedule/') || endpoint.startsWith('standings/') || endpoint.startsWith('player/')
-    const base = isWebApi ? NHL_WEB : NHL_STATS
+    const isSearchApi = endpoint.startsWith('search/player')
+    const isWebApi = endpoint.startsWith('score/') || endpoint.startsWith('schedule/') || endpoint.startsWith('standings/') ||
+      endpoint.startsWith('player/') || endpoint.startsWith('roster/') || endpoint.startsWith('club-schedule-season/')
+    const base = isSearchApi ? NHL_SEARCH : (isWebApi ? NHL_WEB : NHL_STATS)
     const params = req.query
     delete params.endpoint
 

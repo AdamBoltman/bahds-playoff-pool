@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { fetchStandings } from '../lib/nhl.js'
 
 export default function StandingsPage() {
@@ -79,13 +80,13 @@ function DivisionTable({ teams, cutoff, showForm }) {
             <tr key={t.teamAbbrev?.default} style={i === cutoff ? s.cutoffLine : undefined}>
               <td style={{ ...s.td, color: 'var(--dim)' }}>{i + 1}</td>
               <td style={{ ...s.td, textAlign: 'left' }}>
-                <div style={s.teamCell}>
+                <Link to={`/team/${t.teamAbbrev?.default}`} style={s.teamCell} className="hover-lift">
                   <img src={t.teamLogo} alt="" style={s.logo} />
                   <div>
                     <div style={s.teamName}>{t.teamCommonName?.default}</div>
                     <div style={s.teamSub}>{clinchLabel(t.clinchIndicator)}</div>
                   </div>
-                </div>
+                </Link>
               </td>
               <td style={s.td}>{t.gamesPlayed}</td>
               <td style={s.td}>{t.wins}</td>
@@ -136,7 +137,7 @@ const s = {
   td: { padding: '9px 8px', textAlign: 'center', color: 'var(--muted)', borderBottom: '1px solid var(--border)' },
   cutoffLine: { boxShadow: 'inset 0 1px 0 var(--red)' },
   wildcardNote: { fontSize: 11, color: 'var(--dim)', marginTop: -8 },
-  teamCell: { display: 'flex', alignItems: 'center', gap: 10 },
+  teamCell: { display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', borderRadius: 8 },
   logo: { width: 26, height: 26, objectFit: 'contain', flexShrink: 0 },
   teamName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 700, color: 'var(--text)' },
   teamSub: { fontSize: 11, color: 'var(--dim)' },
