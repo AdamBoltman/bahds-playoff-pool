@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { fetchRoster, fetchTeamSchedule, fetchTeamNews, gamecenterUrl, getTeamXHandle, timeAgo, todayStr, fetchGameVideoIds } from '../lib/nhl.js'
+import { fetchRoster, fetchTeamSchedule, fetchTeamNews, gamecenterUrl, getTeamXHandle, timeAgo, todayStr } from '../lib/nhl.js'
 import PlayerCard from '../components/PlayerCard.jsx'
 import TeamTimeline from '../components/TeamTimeline.jsx'
-import VideoModal from '../components/VideoModal.jsx'
 
 export default function TeamPage() {
   const { abbrev } = useParams()
@@ -13,16 +12,6 @@ export default function TeamPage() {
   const [newsLoading, setNewsLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [openPlayerId, setOpenPlayerId] = useState(null)
-  const [videoId, setVideoId] = useState(null)
-  const [loadingRecapId, setLoadingRecapId] = useState(null)
-
-  async function openRecap(game) {
-    setLoadingRecapId(game.id)
-    const ids = await fetchGameVideoIds(game.id)
-    setLoadingRecapId(null)
-    if (ids?.recap) setVideoId(ids.recap)
-    else window.open(gamecenterUrl(game, game.gameDate), '_blank', 'noopener,noreferrer')
-  }
 
   useEffect(() => {
     setLoading(true)
@@ -95,7 +84,7 @@ export default function TeamPage() {
                   const opp = isHome ? g.awayTeam : g.homeTeam
                   const us = isHome ? g.homeTeam : g.awayTeam
                   return (
-                    <button key={g.id} className="hover-lift" style={s.resultRow} onClick={() => openRecap(g)} disabled={loadingRecapId === g.id}>
+                    <a key={g.id} href={gamecenterUrl(g, g.gameDate)} target="_blank" rel="noopener noreferrer" className="hover-lift" style={s.resultRow}>
                       <span style={s.gameDate}>{new Date(`${g.gameDate}T12:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>
                       <span style={{ ...s.haBadge, ...(isHome ? s.haHome : s.haAway) }}>{isHome ? 'HOME' : 'AWAY'}</span>
                       <div style={s.gameOpp}>
@@ -103,8 +92,8 @@ export default function TeamPage() {
                         <span>{isHome ? 'vs' : '@'} {opp?.commonName?.default}</span>
                         <span style={s.resultScore}>{us?.score}-{opp?.score}</span>
                       </div>
-                      <span style={s.watchLink}>{loadingRecapId === g.id ? 'Loading…' : '▶ Recap'}</span>
-                    </button>
+                      <span style={s.watchLink}>▶ Recap</span>
+                    </a>
                   )
                 })}
               </div>
@@ -150,7 +139,6 @@ export default function TeamPage() {
       )}
 
       {openPlayerId && <PlayerCard playerId={openPlayerId} onClose={() => setOpenPlayerId(null)} />}
-      {videoId && <VideoModal videoId={videoId} onClose={() => setVideoId(null)} />}
     </div>
   )
 }
@@ -189,9 +177,9 @@ const s = {
   rosterGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 },
   playerCard: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' },
   resultRow: {
-    width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '10px 16px',
+    display: 'flex', alignItems: 'center', gap: 14, padding: '10px 16px',
     background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-    textDecoration: 'none', color: 'inherit', font: 'inherit', textAlign: 'left',
+    textDecoration: 'none', color: 'inherit',
   },
   resultScore: { color: 'var(--red)', fontWeight: 700, marginLeft: 4 },
   watchLink: { fontSize: 12, fontWeight: 600, color: 'var(--info)', marginLeft: 'auto', flexShrink: 0 },

@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import {
-  fetchSkaterLeaders, fetchGoalieLeaders, fetchESPNNews, timeAgo,
+  fetchAllNews, timeAgo, fetchSkaterLeaders, fetchGoalieLeaders,
   isPlayoffs, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
-  fetchStandings, fetchSeasonInfo, fetchPlayerLanding, fetchGameVideoIds,
+  fetchStandings, fetchSeasonInfo, fetchPlayerLanding,
 } from '../lib/nhl.js'
 import { useAuth } from '../hooks/useAuth.jsx'
 import PlayerCard from '../components/PlayerCard.jsx'
-import VideoModal from '../components/VideoModal.jsx'
 
 export default function HomePage() {
   const { user, isAdmin } = useAuth()
@@ -33,8 +32,6 @@ export default function HomePage() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [spotlight, setSpotlight] = useState(null)
   const [openPlayerId, setOpenPlayerId] = useState(null)
-  const [videoId, setVideoId] = useState(null)
-  const [loadingRecapId, setLoadingRecapId] = useState(null)
 
   useEffect(() => {
     if (playoffs) loadLeaderboard()
@@ -72,7 +69,7 @@ export default function HomePage() {
   }
 
   async function loadNews() {
-    const articles = await fetchESPNNews()
+    const articles = await fetchAllNews()
     setNews(articles.length ? articles : FALLBACK_NEWS)
     setNewsLoading(false)
   }
@@ -83,14 +80,6 @@ export default function HomePage() {
     setToday(t0)
     setLastNight(y0)
     setSeasonInfo(season)
-  }
-
-  async function openRecap(game) {
-    setLoadingRecapId(game.id)
-    const ids = await fetchGameVideoIds(game.id)
-    setLoadingRecapId(null)
-    if (ids?.recap) setVideoId(ids.recap)
-    else window.open(gamecenterUrl(game, lastNight.date), '_blank', 'noopener,noreferrer')
   }
 
   async function loadStandingsSnapshot() {
@@ -304,7 +293,7 @@ export default function HomePage() {
                 {finishedLastNight.map(g => {
                   const home = g.homeTeam || {}, away = g.awayTeam || {}
                   return (
-                    <button key={g.id} className="hover-lift" style={s.hlItem} onClick={() => openRecap(g)} disabled={loadingRecapId === g.id}>
+                    <a key={g.id} href={gamecenterUrl(g, lastNight.date)} target="_blank" rel="noopener noreferrer" className="hover-lift" style={s.hlItem}>
                       <div style={s.hlTeams}>
                         {away.logo && <img src={away.darkLogo || away.logo} alt="" style={s.hlLogo} />}
                         <span style={s.hlScore}>{away.score}</span>
@@ -314,8 +303,8 @@ export default function HomePage() {
                         <span style={s.hlScore}>{home.score}</span>
                         {home.logo && <img src={home.darkLogo || home.logo} alt="" style={s.hlLogo} />}
                       </div>
-                      <span style={s.hlWatch}>{loadingRecapId === g.id ? 'Loading…' : '▶ Recap'}</span>
-                    </button>
+                      <span style={s.hlWatch}>▶ Recap</span>
+                    </a>
                   )
                 })}
               </div>
@@ -355,7 +344,6 @@ export default function HomePage() {
       </div>
 
       {openPlayerId && <PlayerCard playerId={openPlayerId} onClose={() => setOpenPlayerId(null)} />}
-      {videoId && <VideoModal videoId={videoId} onClose={() => setVideoId(null)} />}
     </div>
   )
 }
@@ -476,10 +464,10 @@ const s = {
   seeMore: { display: 'inline-block', marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--info)', textDecoration: 'none' },
   gamesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 8 },
   hlItem: {
-    width: '100%', background: 'var(--surface)', border: '1px solid var(--border)',
+    background: 'var(--surface)', border: '1px solid var(--border)',
     borderRadius: 12, padding: '12px 16px',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    textDecoration: 'none', color: 'inherit', font: 'inherit', textAlign: 'left',
+    textDecoration: 'none', color: 'inherit',
   },
   hlTeams: { display: 'flex', alignItems: 'center', gap: 8 },
   hlLogo: { width: 20, height: 20, objectFit: 'contain' },

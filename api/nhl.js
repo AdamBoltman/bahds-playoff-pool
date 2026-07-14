@@ -21,7 +21,6 @@ export default async function handler(req, res) {
     'roster/',
     'club-schedule-season/',
     'search/player',
-    'gamecenter/',
   ]
 
   const isAllowed = allowed.some(a => endpoint.startsWith(a))
@@ -30,7 +29,7 @@ export default async function handler(req, res) {
   try {
     const isSearchApi = endpoint.startsWith('search/player')
     const isWebApi = endpoint.startsWith('score/') || endpoint.startsWith('schedule/') || endpoint.startsWith('standings/') ||
-      endpoint.startsWith('player/') || endpoint.startsWith('roster/') || endpoint.startsWith('club-schedule-season/') || endpoint.startsWith('gamecenter/')
+      endpoint.startsWith('player/') || endpoint.startsWith('roster/') || endpoint.startsWith('club-schedule-season/')
     const base = isSearchApi ? NHL_SEARCH : (isWebApi ? NHL_WEB : NHL_STATS)
     const params = req.query
     delete params.endpoint

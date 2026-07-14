@@ -1,5 +1,6 @@
 // All NHL API calls go through /api/nhl proxy to avoid CORS issues
 const PROXY = '/api/nhl'
+const NEWS_PROXY = '/api/news'
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl'
 
 // Update both dates each spring when the bracket is announced (see ROUNDS in lib/supabase.js)
@@ -204,27 +205,6 @@ export function gamecenterUrl(game, dateStr) {
   return `https://www.nhl.com/gamecenter/${away}-vs-${home}/${y}/${m}/${d}/${game.id}`
 }
 
-// Returns the numeric Brightcove video IDs for a game's recap/condensed-game videos, or null
-export async function fetchGameVideoIds(gameId) {
-  try {
-    const data = await nhlFetch(`gamecenter/${gameId}/right-rail`)
-    const v = data?.gameVideo
-    if (!v) return null
-    return { recap: v.threeMinRecap || null, condensed: v.condensedGame || null }
-  } catch (e) {
-    console.error('fetchGameVideoIds:', e)
-    return null
-  }
-}
-
-// NHL's own video pages embed this exact Brightcove player (account 6415718365001) —
-// confirmed by inspecting their page source. No API key needed, embeddable in an iframe.
-const BRIGHTCOVE_ACCOUNT = '6415718365001'
-const BRIGHTCOVE_PLAYER = 'D3UCGynRWU_default'
-export function brightcoveEmbedUrl(videoId) {
-  return `https://players.brightcove.net/${BRIGHTCOVE_ACCOUNT}/${BRIGHTCOVE_PLAYER}/index.html?videoId=${videoId}&autoplay=true`
-}
-
 export async function fetchESPNNews() {
   try {
     const res = await fetch(`${ESPN_BASE}/news?limit=6`)
@@ -236,6 +216,27 @@ export async function fetchESPNNews() {
       source: 'ESPN'
     }))
   } catch { return [] }
+}
+
+async function fetchRSSNews(source) {
+  try {
+    const res = await fetch(`${NEWS_PROXY}?source=${source}`)
+    const data = await res.json()
+    return data.articles || []
+  } catch (e) {
+    console.error(`fetchRSSNews(${source}):`, e)
+    return []
+  }
+}
+
+// Mixes ESPN with Sportsnet/CBS Sports for more variety in the Home news feed
+export async function fetchAllNews() {
+  const [espn, sportsnet, cbs] = await Promise.all([
+    fetchESPNNews(),
+    fetchRSSNews('sportsnet'),
+    fetchRSSNews('cbs'),
+  ])
+  return [...espn, ...sportsnet, ...cbs].sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0))
 }
 
 // ESPN's team IDs don't match NHL's official abbreviations for a handful of teams
