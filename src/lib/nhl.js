@@ -195,8 +195,8 @@ export async function fetchStandings() {
   }
 }
 
-// NHL's direct video-id redirect (nhl.com/video/c-{id}) is dead (returns an empty page),
-// so link to the game's real gamecenter page instead — it has the recap embedded.
+// Fallback link — NHL's direct video-id redirect (nhl.com/video/c-{id}) is dead,
+// but the full gamecenter page works and has the recap embedded there too.
 export function gamecenterUrl(game, dateStr) {
   const [y, m, d] = dateStr.split('-')
   const away = game.awayTeam?.abbrev?.toLowerCase()
@@ -204,11 +204,71 @@ export function gamecenterUrl(game, dateStr) {
   return `https://www.nhl.com/gamecenter/${away}-vs-${home}/${y}/${m}/${d}/${game.id}`
 }
 
+// Returns the numeric Brightcove video IDs for a game's recap/condensed-game videos, or null
+export async function fetchGameVideoIds(gameId) {
+  try {
+    const data = await nhlFetch(`gamecenter/${gameId}/right-rail`)
+    const v = data?.gameVideo
+    if (!v) return null
+    return { recap: v.threeMinRecap || null, condensed: v.condensedGame || null }
+  } catch (e) {
+    console.error('fetchGameVideoIds:', e)
+    return null
+  }
+}
+
+// NHL's own video pages embed this exact Brightcove player (account 6415718365001) —
+// confirmed by inspecting their page source. No API key needed, embeddable in an iframe.
+const BRIGHTCOVE_ACCOUNT = '6415718365001'
+const BRIGHTCOVE_PLAYER = 'D3UCGynRWU_default'
+export function brightcoveEmbedUrl(videoId) {
+  return `https://players.brightcove.net/${BRIGHTCOVE_ACCOUNT}/${BRIGHTCOVE_PLAYER}/index.html?videoId=${videoId}&autoplay=true`
+}
+
 export async function fetchESPNNews() {
   try {
     const res = await fetch(`${ESPN_BASE}/news?limit=6`)
     const data = await res.json()
     return (data.articles || []).slice(0, 5).map(a => ({
+      headline: a.headline,
+      published: a.published,
+      link: a.links?.web?.href || '#',
+      source: 'ESPN'
+    }))
+  } catch { return [] }
+}
+
+// ESPN's team IDs don't match NHL's official abbreviations for a handful of teams
+// (e.g. SJS->SJ, TBL->TB, UTA->129764) — mapped here by NHL abbrev since that's what the rest of the app uses.
+const ESPN_TEAM_IDS = {
+  ANA: 25, BOS: 1, BUF: 2, CAR: 7, CBJ: 29, CGY: 3, CHI: 4, COL: 17, DAL: 9, DET: 5,
+  EDM: 6, FLA: 26, LAK: 8, MIN: 30, MTL: 10, NJD: 11, NSH: 27, NYI: 12, NYR: 13, OTT: 14,
+  PHI: 15, PIT: 16, SEA: 124292, SJS: 18, STL: 19, TBL: 20, TOR: 21, UTA: 129764,
+  VAN: 22, VGK: 37, WPG: 28, WSH: 23,
+}
+
+// Official team X/Twitter handles, for the embedded timeline on TeamPage
+const TEAM_X_HANDLES = {
+  ANA: 'AnaheimDucks', BOS: 'NHLBruins', BUF: 'BuffaloSabres', CAR: 'Canes', CBJ: 'BlueJacketsNHL',
+  CGY: 'NHLFlames', CHI: 'NHLBlackhawks', COL: 'Avalanche', DAL: 'DallasStars', DET: 'DetroitRedWings',
+  EDM: 'EdmontonOilers', FLA: 'FlaPanthers', LAK: 'LAKings', MIN: 'mnwild', MTL: 'CanadiensMTL',
+  NJD: 'NJDevils', NSH: 'PredsNHL', NYI: 'NYIslanders', NYR: 'NYRangers', OTT: 'Senators',
+  PHI: 'NHLFlyers', PIT: 'penguins', SEA: 'SeattleKraken', SJS: 'SanJoseSharks', STL: 'StLouisBlues',
+  TBL: 'TBLightning', TOR: 'MapleLeafs', UTA: 'UtahMammoth', VAN: 'Canucks', VGK: 'GoldenKnights',
+  WPG: 'NHLJets', WSH: 'Capitals',
+}
+
+export function getTeamXHandle(teamAbbrev) {
+  return TEAM_X_HANDLES[teamAbbrev] || null
+}
+
+export async function fetchTeamNews(teamAbbrev, limit = 5) {
+  const espnId = ESPN_TEAM_IDS[teamAbbrev]
+  if (!espnId) return []
+  try {
+    const res = await fetch(`${ESPN_BASE}/news?team=${espnId}&limit=${limit}`)
+    const data = await res.json()
+    return (data.articles || []).slice(0, limit).map(a => ({
       headline: a.headline,
       published: a.published,
       link: a.links?.web?.href || '#',

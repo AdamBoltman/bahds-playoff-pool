@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchScheduleDay, shiftDate, todayStr, gamecenterUrl } from '../lib/nhl.js'
+import { fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, fetchGameVideoIds } from '../lib/nhl.js'
+import VideoModal from '../components/VideoModal.jsx'
 
 function formatDay(dateStr) {
   if (!dateStr) return ''
@@ -20,6 +21,8 @@ function formatTime(iso) {
 export default function SchedulePage() {
   const [day, setDay] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [videoId, setVideoId] = useState(null)
+  const [loadingRecapId, setLoadingRecapId] = useState(null)
 
   useEffect(() => { load(todayStr()) }, [])
 
@@ -28,6 +31,14 @@ export default function SchedulePage() {
     const data = await fetchScheduleDay(date)
     setDay(data)
     setLoading(false)
+  }
+
+  async function openRecap(game) {
+    setLoadingRecapId(game.id)
+    const ids = await fetchGameVideoIds(game.id)
+    setLoadingRecapId(null)
+    if (ids?.recap) setVideoId(ids.recap)
+    else window.open(gamecenterUrl(game, day.date), '_blank', 'noopener,noreferrer')
   }
 
   const games = day?.games || []
@@ -76,9 +87,9 @@ export default function SchedulePage() {
                 </div>
                 {isFinal && (
                   <div style={s.hlRow}>
-                    <a href={gamecenterUrl(g, day.date)} target="_blank" rel="noopener noreferrer" className="hover-lift" style={s.hlBtn}>
-                      ▶ Watch recap
-                    </a>
+                    <button className="hover-lift" style={s.hlBtn} onClick={() => openRecap(g)} disabled={loadingRecapId === g.id}>
+                      {loadingRecapId === g.id ? 'Loading…' : '▶ Watch recap'}
+                    </button>
                   </div>
                 )}
               </div>
@@ -86,6 +97,8 @@ export default function SchedulePage() {
           })}
         </div>
       )}
+
+      {videoId && <VideoModal videoId={videoId} onClose={() => setVideoId(null)} />}
     </div>
   )
 }
