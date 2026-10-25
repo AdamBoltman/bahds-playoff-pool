@@ -4,7 +4,7 @@ const NEWS_PROXY = '/api/news'
 const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl'
 
 // Update both dates each spring when the bracket is announced (see ROUNDS in lib/supabase.js)
-const PLAYOFFS_START = new Date('2027-04-15T00:00:00Z') // placeholder — update when NHL confirms
+export const PLAYOFFS_START = new Date('2027-04-15T00:00:00Z') // placeholder — update when NHL confirms
 const PLAYOFFS_END = new Date('2027-07-01T00:00:00Z')
 export const isPlayoffs = () => { const n = new Date(); return n >= PLAYOFFS_START && n <= PLAYOFFS_END }
 const seasonId = '20262027'

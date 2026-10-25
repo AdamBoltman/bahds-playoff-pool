@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase, PLAYOFFS_START } from '../lib/supabase.js'
+import { supabase } from '../lib/supabase.js'
 import {
   fetchAllNews, timeAgo, fetchSkaterLeaders, fetchGoalieLeaders,
-  isPlayoffs, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
+  isPlayoffs, PLAYOFFS_START, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
   fetchStandings, fetchSeasonInfo, fetchPlayerLanding,
 } from '../lib/nhl.js'
 import { useAuth } from '../hooks/useAuth.jsx'
