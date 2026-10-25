@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
+import { supabase, PLAYOFFS_START } from '../lib/supabase.js'
 import {
   fetchAllNews, timeAgo, fetchSkaterLeaders, fetchGoalieLeaders,
   isPlayoffs, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
@@ -32,19 +32,26 @@ export default function HomePage() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [spotlight, setSpotlight] = useState(null)
   const [openPlayerId, setOpenPlayerId] = useState(null)
+  const [allScores, setAllScores] = useState([])
+  const [allTeams, setAllTeams] = useState([])
+  const [favTeam, setFavTeam] = useState(null)
+  const [pickingFav, setPickingFav] = useState(false)
+  const [savingFav, setSavingFav] = useState(false)
 
   useEffect(() => {
-    if (playoffs) loadLeaderboard()
+    loadLeaderboard()
     loadStats()
     loadNews()
     loadGames()
     loadCommNote()
     loadStandingsSnapshot()
+    if (user) loadFavTeam()
   }, [])
 
   async function loadLeaderboard() {
     const { data } = await supabase.from('scores').select('user_id, display_name, total').order('total', { ascending: false })
     if (!data?.length) return
+    setAllScores(data)
     setLeader(data[0])
     setPlayerCount(data.length)
     const idx = data.findIndex(r => r.user_id === user?.id)
@@ -56,6 +63,19 @@ export default function HomePage() {
       setMyPts(myTotal)
       setIsTied(tied)
     }
+  }
+
+  async function loadFavTeam() {
+    const { data } = await supabase.from('profiles').select('favourite_team').eq('user_id', user.id).maybeSingle()
+    if (data?.favourite_team) setFavTeam(data.favourite_team)
+  }
+
+  async function saveFavTeam(abbrev) {
+    setSavingFav(true)
+    await supabase.from('profiles').update({ favourite_team: abbrev }).eq('user_id', user.id)
+    setFavTeam(abbrev)
+    setSavingFav(false)
+    setPickingFav(false)
   }
 
   async function loadStats() {
@@ -85,6 +105,7 @@ export default function HomePage() {
   async function loadStandingsSnapshot() {
     const data = await fetchStandings()
     setDivisionLeaders(data.filter(t => t.divisionSequence === 1).sort((a, b) => b.points - a.points))
+    setAllTeams(data)
   }
 
   async function loadCommNote() {
@@ -132,6 +153,30 @@ export default function HomePage() {
             <div style={s.commText}>{commNote || <span style={{ color: 'var(--dim)', fontStyle: 'italic', fontSize: 13 }}>No message yet — click Edit to post one.</span>}</div>
           )}
         </div>
+      )}
+
+      {/* Pool section — always visible */}
+      {!playoffs && allScores.length > 0 && (
+        <>
+          <div className="section-label">🏒 Bahds Pool — 2025-26 Final Standings</div>
+          <div style={s.poolCard}>
+            <div style={s.poolRows}>
+              {allScores.slice(0, 5).map((row, i) => (
+                <div key={row.user_id} style={{ ...s.poolRow, background: i === 0 ? 'rgba(255,215,0,0.06)' : 'transparent' }}>
+                  <span style={{ ...s.poolRank, color: i === 0 ? 'var(--gold)' : 'var(--dim)' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</span>
+                  <span style={s.poolName}>{row.display_name}</span>
+                  <span style={s.poolPts}>{row.total} pts</span>
+                </div>
+              ))}
+            </div>
+            <div style={s.poolFooter}>
+              <div style={s.poolDate}>
+                🗓 Playoff picks open ~{PLAYOFFS_START.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })}
+              </div>
+              <Link to="/leaderboard" style={s.poolLink}>Full leaderboard ›</Link>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Pool leader — playoffs only */}
@@ -246,6 +291,54 @@ export default function HomePage() {
                 })}
               </div>
               <Link to="/standings" style={s.seeMore}>See full standings ›</Link>
+            </>
+          )}
+
+          {/* Favourite Team */}
+          {user && (
+            <>
+              <div className="section-label" style={{ marginTop: 28 }}>My Team</div>
+              {favTeam ? (
+                <div style={s.favCard}>
+                  <Link to={`/team/${favTeam}`} style={s.favInner} className="hover-lift">
+                    <img
+                      src={`https://assets.nhle.com/logos/nhl/svg/${favTeam}_dark.svg`}
+                      alt={favTeam} style={s.favLogo}
+                      onError={e => { e.target.src = `https://assets.nhle.com/logos/nhl/svg/${favTeam}_light.svg` }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={s.favName}>{allTeams.find(t => t.teamAbbrev?.default === favTeam)?.teamCommonName?.default || favTeam}</div>
+                      <div style={s.favSub}>Roster · Schedule · News ›</div>
+                    </div>
+                  </Link>
+                  <button style={s.favChangeBtn} onClick={() => setPickingFav(v => !v)}>
+                    {pickingFav ? 'Cancel' : 'Change'}
+                  </button>
+                </div>
+              ) : (
+                <div style={s.favEmpty}>
+                  <div style={{ fontSize: 13, color: 'var(--dim)', marginBottom: 10 }}>Follow a team for quick access to their roster, schedule & news</div>
+                  <button style={s.saveNoteBtn} onClick={() => setPickingFav(true)}>Choose your team</button>
+                </div>
+              )}
+              {pickingFav && (
+                <div style={s.favPicker}>
+                  <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase' }}>Select a team</div>
+                  <div style={s.favGrid}>
+                    {[...allTeams].sort((a, b) => (a.teamAbbrev?.default || '').localeCompare(b.teamAbbrev?.default || '')).map(t => {
+                      const abbrev = t.teamAbbrev?.default
+                      if (!abbrev) return null
+                      return (
+                        <div key={abbrev} title={t.teamCommonName?.default}
+                          style={{ ...s.favTeamBtn, border: favTeam === abbrev ? '2px solid var(--red)' : '1px solid var(--border)', opacity: savingFav ? 0.5 : 1 }}
+                          onClick={() => !savingFav && saveFavTeam(abbrev)}>
+                          <img src={t.teamLogo} alt={abbrev} style={{ width: 30, height: 30, objectFit: 'contain' }} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -487,6 +580,62 @@ const s = {
   newsTitle: { fontSize: 14, color: 'var(--text)', lineHeight: 1.45 },
   newsMeta: { fontSize: 12, color: 'var(--dim)', marginTop: 4 },
   newsArrow: { fontSize: 18, color: 'var(--dim)', marginLeft: 4, flexShrink: 0 },
+
+  // Pool section
+  poolCard: {
+    background: 'linear-gradient(135deg, #171a23 0%, #1d212c 100%)',
+    border: '1px solid var(--border)', borderRadius: 14,
+    overflow: 'hidden', marginBottom: 24, boxShadow: 'var(--shadow-md)',
+  },
+  poolRows: { padding: '4px 0' },
+  poolRow: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '10px 18px', borderBottom: '1px solid var(--border)',
+  },
+  poolRank: { fontSize: 14, width: 24, flexShrink: 0, textAlign: 'center' },
+  poolName: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text)', fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16 },
+  poolPts: { fontSize: 13, color: 'var(--dim)', fontWeight: 600 },
+  poolFooter: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '12px 18px', background: 'rgba(0,0,0,0.15)',
+  },
+  poolDate: { fontSize: 12, color: 'var(--dim)' },
+  poolLink: { fontSize: 12, fontWeight: 600, color: 'var(--info)', textDecoration: 'none' },
+
+  // Favourite team
+  favCard: {
+    background: 'var(--surface)', border: '1px solid var(--border)',
+    borderRadius: 12, overflow: 'hidden', marginBottom: 8,
+    display: 'flex', alignItems: 'center',
+  },
+  favInner: {
+    display: 'flex', alignItems: 'center', gap: 14,
+    padding: '14px 16px', flex: 1, textDecoration: 'none', color: 'inherit',
+  },
+  favLogo: { width: 44, height: 44, objectFit: 'contain', flexShrink: 0 },
+  favName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 700, color: 'var(--text)' },
+  favSub: { fontSize: 12, color: 'var(--info)', marginTop: 2 },
+  favChangeBtn: {
+    background: 'transparent', border: 'none',
+    padding: '14px 16px', fontSize: 12, color: 'var(--dim)',
+    cursor: 'pointer', flexShrink: 0,
+  },
+  favEmpty: {
+    background: 'var(--surface)', border: '1px solid var(--border)',
+    borderRadius: 12, padding: '18px 16px', marginBottom: 8, textAlign: 'center',
+  },
+  favPicker: {
+    background: 'var(--surface)', border: '1px solid var(--border)',
+    borderRadius: 12, padding: '16px', marginBottom: 8,
+  },
+  favGrid: {
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))', gap: 8,
+  },
+  favTeamBtn: {
+    borderRadius: 8, padding: 8, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'var(--surface2)', transition: 'border-color 0.15s',
+  },
 }
 
 const FALLBACK_NEWS = [

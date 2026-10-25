@@ -23,7 +23,7 @@ export default function TopBar() {
         <img src="/icon-192.png" alt="Bahds Hockey" style={s.logoImg} />
         <div>
           <div style={s.logoText}>Bahds Hockey</div>
-          <div style={s.logoSub}>{playoffs ? '2026 Stanley Cup Playoffs' : 'NHL 2025-26 Season'}</div>
+          <div style={s.logoSub}>{playoffs ? '2027 Stanley Cup Playoffs' : 'NHL 2026-27 Season'}</div>
         </div>
       </div>
       <div style={s.right}>
