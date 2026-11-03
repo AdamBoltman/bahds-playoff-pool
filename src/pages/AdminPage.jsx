@@ -45,6 +45,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState([])
   const [saving, setSaving] = useState(false)
   const [recalcing, setRecalcing] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
   const playoffs = isPlayoffs()
   const [activeTab, setActiveTab] = useState(playoffs ? 'matchups' : 'users')
@@ -186,7 +187,28 @@ export default function AdminPage() {
     flash('Scores recalculated!')
   }
 
-  function flash(text) { setMsg(text); setTimeout(() => setMsg(''), 4000) }
+  async function syncFromNHL() {
+    setSyncing(true)
+    setMsg('')
+    try {
+      const res = await fetch('/api/sync-bracket')
+      const data = await res.json()
+      if (data.ok) {
+        flash(`✓ Synced ${data.series} series, ${data.results} results. ${data.recalc}`)
+        // Refresh local state
+        loadResults()
+        loadMatchupOverrides()
+        loadLiveScores()
+      } else {
+        flash(data.message || data.error || 'Sync returned unexpected response')
+      }
+    } catch (e) {
+      flash('Sync failed: ' + e.message)
+    }
+    setSyncing(false)
+  }
+
+  function flash(text) { setMsg(text); setTimeout(() => setMsg(''), 6000) }
 
   if (!isAdmin) return null
 
@@ -197,11 +219,23 @@ export default function AdminPage() {
     <div className="page-wrap fade-up">
       <div style={s.adminBanner}>&#9881; Admin Panel — only visible to you</div>
 
+      {/* NHL Sync — always visible, harmless off-season (returns "no bracket" gracefully) */}
+      <div style={s.syncRow}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3 }}>🏒 Sync from NHL</div>
+          <div style={{ fontSize: 12, color: '#9CAAB8' }}>
+            Pulls live bracket, series scores, and results from the NHL API. Recalculates pool scores automatically. Run this any time during playoffs — the hourly cron runs it too.
+          </div>
+        </div>
+        <button style={{ ...s.btn, whiteSpace: 'nowrap', minWidth: 130 }} onClick={syncFromNHL} disabled={syncing}>
+          {syncing ? <span className="spinner" /> : '🔄 Sync Now'}
+        </button>
+      </div>
+      {msg && <div style={s.flashMsg}>{msg}</div>}
+
       {!playoffs && (
         <div style={s.offSeasonNote}>
-          Pool tools (matchups, results, scoring) unlock once playoffs start — nothing to set up right now.
-          Auto-updating results/scoring straight from the NHL API is planned for before then, so this should
-          need a lot less manual entry next time around.
+          Pool tools (matchups, results, scoring) unlock once playoffs start. The NHL sync above will populate everything automatically once the bracket is seeded in April — no manual entry needed.
         </div>
       )}
 
@@ -692,6 +726,7 @@ function UserRow({ user, onSave, s }) {
 
 const s = {
   adminBanner: { background: '#FFF8E1', border: '1px solid rgba(212,168,0,0.25)', borderRadius: 8, padding: '10px 16px', fontSize: 13, color: '#B8900A', marginBottom: 20 },
+  syncRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '14px 16px', marginBottom: 12 },
   offSeasonNote: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#9CAAB8', marginBottom: 20, lineHeight: 1.6 },
   tabs: { display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' },
   tab: { padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 500, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#6B7A8D', cursor: 'pointer' },

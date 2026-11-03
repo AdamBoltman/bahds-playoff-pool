@@ -1,6 +1,7 @@
 -- Allow authenticated users to insert their own profile row
 -- (needed for upsert, and as a safety net if the signup trigger misfires)
-create policy if not exists "profiles_insert"
+drop policy if exists "profiles_insert" on public.profiles;
+create policy "profiles_insert"
   on public.profiles for insert
   with check (auth.uid() = user_id);
 
