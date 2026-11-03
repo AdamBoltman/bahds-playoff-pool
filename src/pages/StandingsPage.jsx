@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchStandings } from '../lib/nhl.js'
+import { supabase } from '../lib/supabase.js'
+import { useAuth } from '../hooks/useAuth.jsx'
 
 export default function StandingsPage() {
+  const { user } = useAuth()
   const [standings, setStandings] = useState([])
   const [loading, setLoading] = useState(true)
   const [conf, setConf] = useState('W')
+  const [favTeam, setFavTeam] = useState(null)
 
   useEffect(() => {
     fetchStandings().then(data => { setStandings(data); setLoading(false) })
+    if (user) {
+      supabase.from('profiles').select('favourite_team').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => { if (data?.favourite_team) setFavTeam(data.favourite_team) })
+    }
   }, [])
 
   const confTeams = standings.filter(t => t.conferenceAbbrev === conf)
@@ -43,13 +51,13 @@ export default function StandingsPage() {
             {divisions.map(div => (
               <div key={div.name}>
                 <div style={s.subLabel}>{div.name}</div>
-                <DivisionTable teams={div.teams} cutoff={3} />
+                <DivisionTable teams={div.teams} cutoff={3} favTeam={favTeam} />
               </div>
             ))}
           </div>
 
           <div style={s.subLabel}>Wild Card Race</div>
-          <DivisionTable teams={wildcard} cutoff={2} showForm />
+          <DivisionTable teams={wildcard} cutoff={2} showForm favTeam={favTeam} />
           <div style={s.wildcardNote}>Top 3 in each division plus the top 2 wild cards make the playoffs — line shown after the cutoff</div>
         </>
       )}
@@ -57,7 +65,7 @@ export default function StandingsPage() {
   )
 }
 
-function DivisionTable({ teams, cutoff, showForm }) {
+function DivisionTable({ teams, cutoff, showForm, favTeam }) {
   const maxPts = Math.max(...teams.map(t => t.points), 1)
   return (
     <div className="card" style={{ padding: 0, overflowX: 'auto', marginBottom: 20 }}>
@@ -83,7 +91,10 @@ function DivisionTable({ teams, cutoff, showForm }) {
                 <Link to={`/team/${t.teamAbbrev?.default}`} style={s.teamCell} className="hover-lift">
                   <img src={t.teamLogo} alt="" style={s.logo} />
                   <div>
-                    <div style={s.teamName}>{t.teamCommonName?.default}</div>
+                    <div style={s.teamName}>
+                      {t.teamCommonName?.default}
+                      {favTeam === t.teamAbbrev?.default && <span style={s.favStar}>★</span>}
+                    </div>
                     <div style={s.teamSub}>{clinchLabel(t.clinchIndicator)}</div>
                   </div>
                 </Link>
@@ -139,6 +150,7 @@ const s = {
   wildcardNote: { fontSize: 11, color: 'var(--dim)', marginTop: -8 },
   teamCell: { display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', borderRadius: 8 },
   logo: { width: 26, height: 26, objectFit: 'contain', flexShrink: 0 },
-  teamName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 700, color: 'var(--text)' },
+  teamName: { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 },
+  favStar: { fontSize: 11, color: 'var(--gold)', lineHeight: 1 },
   teamSub: { fontSize: 11, color: 'var(--dim)' },
 }

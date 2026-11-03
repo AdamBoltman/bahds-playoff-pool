@@ -70,7 +70,7 @@ export default function HomePage() {
 
   async function saveFavTeam(abbrev) {
     setSavingFav(true)
-    await supabase.from('profiles').update({ favourite_team: abbrev }).eq('user_id', user.id)
+    await supabase.from('profiles').upsert({ user_id: user.id, favourite_team: abbrev }, { onConflict: 'user_id' })
     setFavTeam(abbrev)
     setSavingFav(false)
     setPickingFav(false)

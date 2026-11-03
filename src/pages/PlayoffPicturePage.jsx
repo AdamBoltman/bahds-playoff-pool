@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchStandings } from '../lib/nhl.js'
+import { supabase } from '../lib/supabase.js'
+import { useAuth } from '../hooks/useAuth.jsx'
 
 // Given all teams in a conference, return the playoff picture
 function getPlayoffPicture(teams) {
@@ -48,14 +50,18 @@ function getPlayoffPicture(teams) {
   return { div1: div1teams, div2: div2teams, wildCards, bubble, eliminated, matchups, divNames }
 }
 
-function TeamRow({ team, badge, dim }) {
+function TeamRow({ team, badge, dim, favTeam }) {
   if (!team) return <div style={s.teamRowEmpty}>TBD</div>
   const abbrev = team.teamAbbrev?.default
+  const isFav = favTeam === abbrev
   return (
-    <Link to={`/team/${abbrev}`} style={{ ...s.teamRow, opacity: dim ? 0.45 : 1 }} className="hover-lift">
+    <Link to={`/team/${abbrev}`} style={{ ...s.teamRow, opacity: dim ? 0.45 : 1, borderColor: isFav ? 'var(--gold)' : undefined }} className="hover-lift">
       <img src={team.teamLogo} alt={abbrev} style={s.teamLogo} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={s.teamName}>{team.teamCommonName?.default}</div>
+        <div style={{ ...s.teamName, display: 'flex', alignItems: 'center', gap: 5 }}>
+          {team.teamCommonName?.default}
+          {isFav && <span style={s.favStar}>★</span>}
+        </div>
         <div style={s.teamRecord}>{team.wins}W {team.losses}L {team.otLosses}OT · {team.points} pts</div>
       </div>
       {badge && <span style={{ ...s.badge, background: badgeColor(badge) }}>{badge}</span>}
@@ -90,7 +96,7 @@ function MatchupTeam({ team, label, right }) {
   )
 }
 
-function ConferencePanel({ label, teams }) {
+function ConferencePanel({ label, teams, favTeam }) {
   if (!teams.length) return null
   const { div1, div2, wildCards, bubble, matchups, divNames } = getPlayoffPicture(teams)
 
@@ -110,15 +116,15 @@ function ConferencePanel({ label, teams }) {
       <div style={s.sectionHead}>In the playoffs</div>
       <div style={s.teamList}>
         {[div1[0], div1[1], div1[2]].map((t, i) => (
-          <TeamRow key={t?.teamAbbrev?.default || i} team={t}
+          <TeamRow key={t?.teamAbbrev?.default || i} team={t} favTeam={favTeam}
             badge={i === 0 ? `${t?.divisionName} 1st` : i === 1 ? `${t?.divisionName} 2nd` : `${t?.divisionName} 3rd`} />
         ))}
         {[div2[0], div2[1], div2[2]].map((t, i) => (
-          <TeamRow key={t?.teamAbbrev?.default || i} team={t}
+          <TeamRow key={t?.teamAbbrev?.default || i} team={t} favTeam={favTeam}
             badge={i === 0 ? `${t?.divisionName} 1st` : i === 1 ? `${t?.divisionName} 2nd` : `${t?.divisionName} 3rd`} />
         ))}
         {wildCards.map((t, i) => (
-          <TeamRow key={t?.teamAbbrev?.default} team={t} badge={i === 0 ? 'WC1' : 'WC2'} />
+          <TeamRow key={t?.teamAbbrev?.default} team={t} badge={i === 0 ? 'WC1' : 'WC2'} favTeam={favTeam} />
         ))}
       </div>
 
@@ -131,7 +137,7 @@ function ConferencePanel({ label, teams }) {
               const ptsBehind = wildCards[1] ? wildCards[1].points - t.points : null
               return (
                 <div key={t.teamAbbrev?.default} style={s.bubbleRow}>
-                  <TeamRow team={t} dim={false} />
+                  <TeamRow team={t} dim={false} favTeam={favTeam} />
                   {ptsBehind !== null && (
                     <span style={s.ptsBehind}>{ptsBehind > 0 ? `${ptsBehind} pts back` : 'Even'}</span>
                   )}
@@ -146,14 +152,17 @@ function ConferencePanel({ label, teams }) {
 }
 
 export default function PlayoffPicturePage() {
+  const { user } = useAuth()
   const [standings, setStandings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [favTeam, setFavTeam] = useState(null)
 
   useEffect(() => {
-    fetchStandings().then(data => {
-      setStandings(data)
-      setLoading(false)
-    })
+    fetchStandings().then(data => { setStandings(data); setLoading(false) })
+    if (user) {
+      supabase.from('profiles').select('favourite_team').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => { if (data?.favourite_team) setFavTeam(data.favourite_team) })
+    }
   }, [])
 
   const east = standings.filter(t => t.conferenceAbbrev === 'E')
@@ -177,8 +186,8 @@ export default function PlayoffPicturePage() {
       </div>
 
       <div style={s.grid}>
-        <ConferencePanel label="Eastern Conference" teams={east} />
-        <ConferencePanel label="Western Conference" teams={west} />
+        <ConferencePanel label="Eastern Conference" teams={east} favTeam={favTeam} />
+        <ConferencePanel label="Western Conference" teams={west} favTeam={favTeam} />
       </div>
     </div>
   )
@@ -228,6 +237,7 @@ const s = {
     color: 'var(--muted)', flexShrink: 0,
     border: '1px solid rgba(255,255,255,0.08)',
   },
+  favStar: { fontSize: 11, color: 'var(--gold)', lineHeight: 1 },
   bubbleRow: { position: 'relative' },
   ptsBehind: {
     position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
