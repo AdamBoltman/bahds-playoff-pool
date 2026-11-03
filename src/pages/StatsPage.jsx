@@ -87,6 +87,13 @@ const TABS = [
   { id: 'goalies',  label: 'Goalies' },
 ]
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function initials(fullName) {
+  if (!fullName) return ''
+  const parts = fullName.trim().split(' ')
+  return parts.length >= 2 ? `${parts[0][0]}. ${parts.slice(1).join(' ')}` : fullName
+}
+
 // ─── Radar chart for comparison ─────────────────────────────────────────────
 function RadarChart({ axes }) {
   // axes: [{ label, valA, valB, max }]
@@ -132,20 +139,38 @@ function RadarChart({ axes }) {
 }
 
 // ─── Single leader row with bar ──────────────────────────────────────────────
-function LeaderRow({ rank, name, team, playerId, value, pct, onClick }) {
+function LeaderRow({ rank, fullName, team, playerId, value, pct, onClick }) {
+  const isTop = rank === 1
+  const shot = playerHeadshot(playerId, team)
   return (
-    <div style={s.leaderRow} onClick={() => onClick(playerId)} role="button">
-      <span style={s.rank}>{rank}</span>
-      <div style={s.barSection}>
-        <div style={s.playerMeta}>
-          <span style={s.playerName}>{name}</span>
-          <span style={s.teamTag}>{team}</span>
+    <div
+      style={{ ...s.leaderRow, ...(isTop ? s.leaderRowTop : {}) }}
+      onClick={() => onClick(playerId)}
+    >
+      <span style={{ ...s.rank, ...(isTop ? { fontSize: 10 } : {}) }}>{rank}</span>
+
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <img
+          src={shot}
+          alt=""
+          style={{ ...s.headshot, ...(isTop ? s.headshotTop : {}) }}
+          onError={e => { e.target.style.visibility = 'hidden' }}
+        />
+      </div>
+
+      <div style={s.playerMeta}>
+        <div style={{ ...s.playerName, ...(isTop ? s.playerNameTop : {}) }}>
+          {isTop ? fullName : initials(fullName)}
         </div>
+        <div style={s.teamPill}>{team}</div>
+      </div>
+
+      <div style={s.rightBlock}>
+        <span style={{ ...s.statNum, ...(isTop ? s.statNumTop : {}) }}>{value}</span>
         <div style={s.barTrack}>
-          <div style={{ ...s.bar, width: `${Math.max(pct * 100, 2)}%` }} />
+          <div style={{ ...s.bar, width: `${Math.max(pct * 100, 3)}%`, opacity: isTop ? 1 : 0.7 }} />
         </div>
       </div>
-      <span style={s.statVal}>{value}</span>
     </div>
   )
 }
@@ -171,20 +196,21 @@ function LeaderCard({ cat, pos, onViewAll, onPlayerClick, cache }) {
   return (
     <div className="card" style={s.leaderCard}>
       <div style={s.cardHead}>
+        <div style={s.cardAccent} />
         <span style={s.catLabel}>{cat.label}</span>
         <button style={s.viewAllBtn} onClick={() => onViewAll(cat)}>See all →</button>
       </div>
       {loading ? (
-        <div style={{ padding: '24px 0', textAlign: 'center' }}><span className="spinner" /></div>
+        <div style={{ padding: '32px 0', textAlign: 'center' }}><span className="spinner" /></div>
       ) : data.length === 0 ? (
-        <div style={{ color: '#9CAAB8', fontSize: 13, padding: '16px 0' }}>No data yet this season.</div>
+        <div style={{ color: '#9CAAB8', fontSize: 13, padding: '16px 0' }}>No data yet.</div>
       ) : (
         <div>
           {data.map((p, i) => (
             <LeaderRow
               key={p.playerId}
               rank={i + 1}
-              name={p[nameF]?.split(' ').slice(-1)[0] || p[nameF]}
+              fullName={p[nameF] || ''}
               team={p.teamAbbrevs?.split(',')[0] || ''}
               playerId={p.playerId}
               value={cat.fmt ? cat.fmt(p[cat.field]) : p[cat.field]}
@@ -247,7 +273,7 @@ function FullListDrawer({ cat, pos, onPlayerClick, onClose, cache }) {
                 <div style={s.barTrackSm}>
                   <div style={{ ...s.bar, width: `${Math.max((Math.abs(p[cat?.field] || 0) / maxVal) * 100, 2)}%` }} />
                 </div>
-                <span style={{ ...s.statVal, minWidth: 42, textAlign: 'right' }}>
+                <span style={{ ...s.statNum, minWidth: 42, textAlign: 'right', fontSize: 14 }}>
                   {cat?.fmt ? cat.fmt(p[cat.field]) : p[cat?.field]}
                 </span>
               </div>
@@ -516,60 +542,77 @@ export default function StatsPage() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const s = {
+  // Nav tabs
   tabs: { display: 'flex', gap: 4, marginBottom: 24, flexWrap: 'wrap' },
-  tab: { padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 500, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#6B7A8D', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5, textTransform: 'uppercase' },
+  tab: { padding: '9px 18px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#5B6A7A', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 1, textTransform: 'uppercase', transition: 'all 0.15s' },
   tabActive: { background: 'var(--red)', color: '#fff', border: '1px solid var(--red)', fontWeight: 700 },
 
+  // Position filter
   posFilter: { display: 'flex', gap: 4 },
-  posBtn: { padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#6B7A8D', cursor: 'pointer' },
-  posBtnActive: { background: 'rgba(200,16,46,0.15)', border: '1px solid var(--red)', color: 'var(--red)', fontWeight: 700 },
+  posBtn: { padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#5B6A7A', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5 },
+  posBtnActive: { background: 'rgba(200,16,46,0.12)', border: '1px solid rgba(200,16,46,0.5)', color: 'var(--red)', fontWeight: 700 },
 
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
+  // Card grid
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
 
-  leaderCard: { padding: '16px 16px 12px' },
-  cardHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  catLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase', color: '#9CAAB8' },
-  viewAllBtn: { background: 'none', border: 'none', color: 'var(--red)', fontSize: 12, cursor: 'pointer', fontWeight: 600, padding: 0 },
+  // Leader card
+  leaderCard: { padding: '0 0 4px' },
+  cardHead: { display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' },
+  cardAccent: { width: 3, height: 16, borderRadius: 2, background: 'var(--red)', flexShrink: 0 },
+  catLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 14, letterSpacing: 1.5, textTransform: 'uppercase', color: '#C8D0D9', flex: 1 },
+  viewAllBtn: { background: 'none', border: 'none', color: '#C8102E', fontSize: 11, cursor: 'pointer', fontWeight: 700, padding: 0, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5, textTransform: 'uppercase' },
 
-  leaderRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', cursor: 'pointer', borderRadius: 4, transition: 'background 0.1s' },
-  rank: { fontSize: 11, color: '#5B6A7A', fontWeight: 700, minWidth: 16, textAlign: 'right' },
-  barSection: { flex: 1, minWidth: 0 },
-  playerMeta: { display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 },
-  playerName: { fontSize: 13, fontWeight: 600, color: '#E8EEF4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  teamTag: { fontSize: 10, color: '#5B6A7A', fontWeight: 600, letterSpacing: 0.5 },
-  barTrack: { height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' },
-  bar: { height: '100%', background: 'var(--red)', borderRadius: 2, transition: 'width 0.4s ease' },
-  statVal: { fontSize: 13, fontWeight: 700, color: '#E8EEF4', minWidth: 36, textAlign: 'right' },
+  // Leader rows
+  leaderRow: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px 5px', cursor: 'pointer', transition: 'background 0.12s' },
+  leaderRowTop: { padding: '10px 14px 8px', background: 'rgba(200,16,46,0.04)', borderBottom: '1px solid rgba(200,16,46,0.08)' },
 
-  // Drawer
-  drawerOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', justifyContent: 'flex-end' },
-  drawer: { background: 'var(--surface)', width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.4)' },
+  rank: { fontSize: 10, color: '#3E5068', fontWeight: 700, minWidth: 14, textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif" },
+
+  headshot: { width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(255,255,255,0.08)', flexShrink: 0 },
+  headshotTop: { width: 38, height: 38, border: '2px solid rgba(200,16,46,0.4)' },
+
+  playerMeta: { flex: 1, minWidth: 0 },
+  playerName: { fontSize: 12, fontWeight: 600, color: '#C8D0D9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2 },
+  playerNameTop: { fontSize: 14, fontWeight: 700, color: '#E8EEF4' },
+
+  teamPill: { fontSize: 9, fontWeight: 700, color: '#4B6072', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 1 },
+
+  rightBlock: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, minWidth: 48 },
+  statNum: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 17, color: '#E8EEF4', lineHeight: 1 },
+  statNumTop: { fontSize: 26, color: '#fff' },
+
+  barTrack: { width: 48, height: 3, background: 'rgba(255,255,255,0.07)', borderRadius: 2, overflow: 'hidden' },
+  bar: { height: '100%', background: 'linear-gradient(90deg, #C8102E, #FF3355)', borderRadius: 2, transition: 'width 0.5s ease' },
+
+  // Full list drawer
+  drawerOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 300, display: 'flex', justifyContent: 'flex-end' },
+  drawer: { background: 'var(--surface)', width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.5)' },
   drawerHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 16px', borderBottom: '1px solid var(--border)' },
-  drawerTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: 'uppercase', color: '#E8EEF4' },
-  closeBtn: { background: 'none', border: 'none', color: '#9CAAB8', fontSize: 18, cursor: 'pointer', padding: 4 },
-  drawerBody: { overflowY: 'auto', flex: 1, padding: '8px 16px 24px' },
-  drawerRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.1s' },
-  mugshot: { width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', background: 'rgba(255,255,255,0.05)' },
-  barTrackSm: { width: 60, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 },
+  drawerTitle: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: 1.5, textTransform: 'uppercase', color: '#E8EEF4' },
+  closeBtn: { background: 'rgba(255,255,255,0.06)', border: 'none', color: '#9CAAB8', fontSize: 16, cursor: 'pointer', padding: '6px 10px', borderRadius: 6 },
+  drawerBody: { overflowY: 'auto', flex: 1, padding: '4px 12px 32px' },
+  drawerRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 6px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.12s', borderRadius: 6 },
+  mugshot: { width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', background: 'rgba(255,255,255,0.05)', flexShrink: 0 },
+  barTrackSm: { width: 56, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 },
 
-  // Compare
+  // Compare section
   compareGrid: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'start', marginTop: 16 },
-  vsLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 900, color: '#5B6A7A', paddingTop: 32 },
+  vsLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, color: '#3E5068', paddingTop: 32, letterSpacing: 2 },
   compareResults: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 24, alignItems: 'start' },
   radarWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
-  radarLegend: { display: 'flex', gap: 16, fontSize: 12, fontFamily: "'Barlow Condensed', sans-serif" },
+  radarLegend: { display: 'flex', gap: 16, fontSize: 12, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5 },
 
-  statTable: { background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--border)' },
-  statTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 80px', gap: 8, padding: '4px 0 10px', borderBottom: '1px solid var(--border)', fontSize: 12 },
+  statTable: { background: 'rgba(255,255,255,0.025)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(255,255,255,0.08)' },
+  statTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 80px', gap: 8, padding: '4px 0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12 },
   statRow: { display: 'grid', gridTemplateColumns: '1fr 80px 80px', gap: 8, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13 },
 
   pickerWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
-  pickerLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#5B6A7A', fontFamily: "'Barlow Condensed', sans-serif" },
-  pickerSelected: { display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px', border: '1px solid var(--border)', position: 'relative' },
-  mugMd: { width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', background: 'rgba(255,255,255,0.05)', flexShrink: 0 },
-  clearBtn: { background: 'none', border: 'none', color: '#5B6A7A', cursor: 'pointer', fontSize: 14, marginLeft: 'auto', padding: 4 },
-  searchInput: { width: '100%', padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: '#E8EEF4', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
-  searchDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', marginTop: 4 },
-  dropdownRow: { padding: '10px 14px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid rgba(255,255,255,0.05)' },
-  viewCardBtn: { background: 'none', border: '1px solid', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '5px 10px', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5 },
+  pickerLabel: { fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: '#3E5068', fontFamily: "'Barlow Condensed', sans-serif" },
+  pickerSelected: { display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', position: 'relative' },
+  mugMd: { width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', background: 'rgba(255,255,255,0.05)', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' },
+  clearBtn: { background: 'none', border: 'none', color: '#3E5068', cursor: 'pointer', fontSize: 14, marginLeft: 'auto', padding: 4 },
+  searchInput: { width: '100%', padding: '11px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#E8EEF4', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
+  searchDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#1A2232', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', marginTop: 4 },
+  dropdownRow: { padding: '11px 14px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.1s' },
+  viewCardBtn: { background: 'none', border: '1px solid', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '5px 10px', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5, textTransform: 'uppercase' },
 }
