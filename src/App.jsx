@@ -10,6 +10,7 @@ import PlayerSearchPage from './pages/PlayerSearchPage.jsx'
 import TeamPage from './pages/TeamPage.jsx'
 import PicksPage from './pages/PicksPage.jsx'
 import LeaderboardPage from './pages/LeaderboardPage.jsx'
+import PlayoffPicturePage from './pages/PlayoffPicturePage.jsx'
 import ScoringPage from './pages/ScoringPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/team/:abbrev" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
         <Route path="/picks" element={<ProtectedRoute><PicksPage /></ProtectedRoute>} />
         <Route path="/leaderboard" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
+        <Route path="/playoff-picture" element={<ProtectedRoute><PlayoffPicturePage /></ProtectedRoute>} />
         <Route path="/scoring" element={<ProtectedRoute><ScoringPage /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

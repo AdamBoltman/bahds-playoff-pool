@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import {
   fetchAllNews, timeAgo, fetchSkaterLeaders, fetchGoalieLeaders,
-  isPlayoffs, PLAYOFFS_START, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
+  isPlayoffs, fetchScheduleDay, shiftDate, todayStr, gamecenterUrl, playerHeadshot,
   fetchStandings, fetchSeasonInfo, fetchPlayerLanding,
 } from '../lib/nhl.js'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -32,7 +32,6 @@ export default function HomePage() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [spotlight, setSpotlight] = useState(null)
   const [openPlayerId, setOpenPlayerId] = useState(null)
-  const [allScores, setAllScores] = useState([])
   const [allTeams, setAllTeams] = useState([])
   const [favTeam, setFavTeam] = useState(null)
   const [pickingFav, setPickingFav] = useState(false)
@@ -51,7 +50,6 @@ export default function HomePage() {
   async function loadLeaderboard() {
     const { data } = await supabase.from('scores').select('user_id, display_name, total').order('total', { ascending: false })
     if (!data?.length) return
-    setAllScores(data)
     setLeader(data[0])
     setPlayerCount(data.length)
     const idx = data.findIndex(r => r.user_id === user?.id)
@@ -153,30 +151,6 @@ export default function HomePage() {
             <div style={s.commText}>{commNote || <span style={{ color: 'var(--dim)', fontStyle: 'italic', fontSize: 13 }}>No message yet — click Edit to post one.</span>}</div>
           )}
         </div>
-      )}
-
-      {/* Pool section — always visible */}
-      {!playoffs && allScores.length > 0 && (
-        <>
-          <div className="section-label">🏒 Bahds Pool — 2025-26 Final Standings</div>
-          <div style={s.poolCard}>
-            <div style={s.poolRows}>
-              {allScores.slice(0, 5).map((row, i) => (
-                <div key={row.user_id} style={{ ...s.poolRow, background: i === 0 ? 'rgba(255,215,0,0.06)' : 'transparent' }}>
-                  <span style={{ ...s.poolRank, color: i === 0 ? 'var(--gold)' : 'var(--dim)' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</span>
-                  <span style={s.poolName}>{row.display_name}</span>
-                  <span style={s.poolPts}>{row.total} pts</span>
-                </div>
-              ))}
-            </div>
-            <div style={s.poolFooter}>
-              <div style={s.poolDate}>
-                🗓 Playoff picks open ~{PLAYOFFS_START.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })}
-              </div>
-              <Link to="/leaderboard" style={s.poolLink}>Full leaderboard ›</Link>
-            </div>
-          </div>
-        </>
       )}
 
       {/* Pool leader — playoffs only */}
@@ -580,27 +554,6 @@ const s = {
   newsTitle: { fontSize: 14, color: 'var(--text)', lineHeight: 1.45 },
   newsMeta: { fontSize: 12, color: 'var(--dim)', marginTop: 4 },
   newsArrow: { fontSize: 18, color: 'var(--dim)', marginLeft: 4, flexShrink: 0 },
-
-  // Pool section
-  poolCard: {
-    background: 'linear-gradient(135deg, #171a23 0%, #1d212c 100%)',
-    border: '1px solid var(--border)', borderRadius: 14,
-    overflow: 'hidden', marginBottom: 24, boxShadow: 'var(--shadow-md)',
-  },
-  poolRows: { padding: '4px 0' },
-  poolRow: {
-    display: 'flex', alignItems: 'center', gap: 12,
-    padding: '10px 18px', borderBottom: '1px solid var(--border)',
-  },
-  poolRank: { fontSize: 14, width: 24, flexShrink: 0, textAlign: 'center' },
-  poolName: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text)', fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16 },
-  poolPts: { fontSize: 13, color: 'var(--dim)', fontWeight: 600 },
-  poolFooter: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '12px 18px', background: 'rgba(0,0,0,0.15)',
-  },
-  poolDate: { fontSize: 12, color: 'var(--dim)' },
-  poolLink: { fontSize: 12, fontWeight: 600, color: 'var(--info)', textDecoration: 'none' },
 
   // Favourite team
   favCard: {
