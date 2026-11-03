@@ -13,6 +13,10 @@ export default async function handler(req, res) {
   // Only allow specific safe endpoints
   const allowed = [
     'skater/summary',
+    'skater/realtime',
+    'skater/powerplay',
+    'skater/penaltykill',
+    'skater/faceoffwins',
     'goalie/summary',
     'score/now',
     'schedule/',

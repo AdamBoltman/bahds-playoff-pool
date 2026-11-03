@@ -12,6 +12,7 @@ import PicksPage from './pages/PicksPage.jsx'
 import LeaderboardPage from './pages/LeaderboardPage.jsx'
 import PlayoffPicturePage from './pages/PlayoffPicturePage.jsx'
 import ScoringPage from './pages/ScoringPage.jsx'
+import StatsPage from './pages/StatsPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 
 function ProtectedRoute({ children }) {
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         <Route path="/schedule" element={<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
         <Route path="/standings" element={<ProtectedRoute><StandingsPage /></ProtectedRoute>} />
+        <Route path="/stats" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
         <Route path="/search" element={<ProtectedRoute><PlayerSearchPage /></ProtectedRoute>} />
         <Route path="/team/:abbrev" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
         <Route path="/picks" element={<ProtectedRoute><PicksPage /></ProtectedRoute>} />
