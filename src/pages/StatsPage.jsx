@@ -139,21 +139,39 @@ function RadarChart({ axes }) {
 }
 
 // ─── Single leader row with bar ──────────────────────────────────────────────
+const RANK_COLORS = { 1: '#C8102E', 2: '#A8A8B0', 3: '#B87333' }
+
 function LeaderRow({ rank, fullName, team, playerId, value, pct, onClick }) {
   const isTop = rank === 1
   const shot = playerHeadshot(playerId, team)
+  const rankColor = RANK_COLORS[rank]
+  const [hovered, setHovered] = useState(false)
   return (
     <div
-      style={{ ...s.leaderRow, ...(isTop ? s.leaderRowTop : {}) }}
+      style={{
+        ...s.leaderRow,
+        ...(isTop ? s.leaderRowTop : {}),
+        ...(hovered && !isTop ? { background: 'rgba(255,255,255,0.03)', borderLeft: '2px solid rgba(200,16,46,0.4)' } : {}),
+      }}
       onClick={() => onClick(playerId)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <span style={{ ...s.rank, ...(isTop ? { fontSize: 10 } : {}) }}>{rank}</span>
+      <span style={{
+        ...s.rank,
+        ...(rankColor ? { color: rankColor, fontSize: isTop ? 10 : 11 } : {}),
+      }}>{rank}</span>
 
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <img
           src={shot}
           alt=""
-          style={{ ...s.headshot, ...(isTop ? s.headshotTop : {}) }}
+          style={{
+            ...s.headshot,
+            ...(isTop ? s.headshotTop : {}),
+            ...(rank === 2 ? { border: '1.5px solid rgba(168,168,176,0.5)' } : {}),
+            ...(rank === 3 ? { border: '1.5px solid rgba(184,115,51,0.5)' } : {}),
+          }}
           onError={e => { e.target.style.visibility = 'hidden' }}
         />
       </div>
@@ -556,14 +574,14 @@ const s = {
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
 
   // Leader card
-  leaderCard: { padding: '0 0 4px' },
+  leaderCard: { padding: '0 0 4px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' },
   cardHead: { display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' },
   cardAccent: { width: 3, height: 16, borderRadius: 2, background: 'var(--red)', flexShrink: 0 },
   catLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 14, letterSpacing: 1.5, textTransform: 'uppercase', color: '#C8D0D9', flex: 1 },
-  viewAllBtn: { background: 'none', border: 'none', color: '#C8102E', fontSize: 11, cursor: 'pointer', fontWeight: 700, padding: 0, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5, textTransform: 'uppercase' },
+  viewAllBtn: { background: 'rgba(200,16,46,0.1)', border: '1px solid rgba(200,16,46,0.3)', color: '#C8102E', fontSize: 10, cursor: 'pointer', fontWeight: 800, padding: '4px 10px', borderRadius: 20, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.8, textTransform: 'uppercase' },
 
   // Leader rows
-  leaderRow: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px 5px', cursor: 'pointer', transition: 'background 0.12s' },
+  leaderRow: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px 5px', cursor: 'pointer', transition: 'background 0.12s, border-left 0.12s', borderLeft: '2px solid transparent' },
   leaderRowTop: { padding: '10px 14px 8px', background: 'rgba(200,16,46,0.04)', borderBottom: '1px solid rgba(200,16,46,0.08)' },
 
   rank: { fontSize: 10, color: '#3E5068', fontWeight: 700, minWidth: 14, textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif" },
@@ -581,7 +599,7 @@ const s = {
   statNum: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 17, color: '#E8EEF4', lineHeight: 1 },
   statNumTop: { fontSize: 26, color: '#fff' },
 
-  barTrack: { width: 48, height: 3, background: 'rgba(255,255,255,0.07)', borderRadius: 2, overflow: 'hidden' },
+  barTrack: { width: 48, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
   bar: { height: '100%', background: 'linear-gradient(90deg, #C8102E, #FF3355)', borderRadius: 2, transition: 'width 0.5s ease' },
 
   // Full list drawer
