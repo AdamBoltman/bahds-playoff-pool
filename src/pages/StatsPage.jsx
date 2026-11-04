@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PlayerCard from '../components/PlayerCard.jsx'
 import { playerHeadshot, isPlayoffs, fetchPlayerLanding } from '../lib/nhl.js'
 
@@ -13,17 +13,16 @@ function formatTOI(secs) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function posFilter(pos) {
+function posFilterStr(pos) {
   if (pos === 'F') return "positionCode in ('L','C','R')"
   if (pos === 'D') return 'positionCode=D'
   return null
 }
 
-async function fetchStats({ endpoint, sortField, ascending, minFilter, limit, pos, extraCayenne }) {
+async function fetchStats({ endpoint, sortField, ascending, minFilter, limit, pos }) {
   const gt = getGameType()
-  const cayenne = extraCayenne ||
-    `gameTypeId=${gt} and seasonId<=${SEASON_ID} and seasonId>=${SEASON_ID}`
-  const pf = pos && pos !== 'all' ? posFilter(pos) : null
+  const cayenne = `gameTypeId=${gt} and seasonId<=${SEASON_ID} and seasonId>=${SEASON_ID}`
+  const pf = pos && pos !== 'all' ? posFilterStr(pos) : null
   const baseFact = minFilter || 'gamesPlayed>=1'
   const factCayenneExp = pf ? `${baseFact} and ${pf}` : baseFact
   const params = {
@@ -43,60 +42,245 @@ async function fetchStats({ endpoint, sortField, ascending, minFilter, limit, po
   return data?.data || []
 }
 
-// ─── Category config ────────────────────────────────────────────────────────
-const CATEGORIES = [
-  // SCORING
-  { id: 'goals',       label: 'Goals',         tab: 'scoring',  endpoint: 'skater/summary',     sortField: 'goals',                    field: 'goals',                fmt: v => v },
-  { id: 'assists',     label: 'Assists',        tab: 'scoring',  endpoint: 'skater/summary',     sortField: 'assists',                  field: 'assists',              fmt: v => v },
-  { id: 'points',      label: 'Points',         tab: 'scoring',  endpoint: 'skater/summary',     sortField: 'points',                   field: 'points',               fmt: v => v },
-  { id: 'plusMinus',   label: 'Plus / Minus',   tab: 'scoring',  endpoint: 'skater/summary',     sortField: 'plusMinus',                field: 'plusMinus',            fmt: v => v > 0 ? `+${v}` : String(v) },
-  { id: 'shootPct',    label: 'Shooting %',     tab: 'scoring',  endpoint: 'skater/summary',     sortField: 'shootingPct',              field: 'shootingPct',          fmt: v => `${(v * 100).toFixed(1)}%`, minFilter: 'gamesPlayed>=5' },
-  { id: 'toi',         label: 'TOI / Game',     tab: 'scoring',  endpoint: 'skater/summary',     sortField: 'timeOnIcePerGame',         field: 'timeOnIcePerGame',     fmt: formatTOI },
-  // SPECIAL TEAMS
-  { id: 'ppPoints',    label: 'PP Points',      tab: 'special',  endpoint: 'skater/powerplay',   sortField: 'ppPoints',                 field: 'ppPoints',             fmt: v => v },
-  { id: 'ppGoals',     label: 'PP Goals',       tab: 'special',  endpoint: 'skater/powerplay',   sortField: 'ppGoals',                  field: 'ppGoals',              fmt: v => v },
-  { id: 'ppTOI',       label: 'PP TOI / Game',  tab: 'special',  endpoint: 'skater/powerplay',   sortField: 'ppTimeOnIcePerGame',       field: 'ppTimeOnIcePerGame',   fmt: formatTOI },
-  { id: 'shGoals',     label: 'SH Goals',       tab: 'special',  endpoint: 'skater/penaltykill', sortField: 'shGoals',                  field: 'shGoals',              fmt: v => v },
-  { id: 'shPoints',    label: 'SH Points',      tab: 'special',  endpoint: 'skater/penaltykill', sortField: 'shPoints',                 field: 'shPoints',             fmt: v => v },
-  { id: 'shTOI',       label: 'PK TOI / Game',  tab: 'special',  endpoint: 'skater/penaltykill', sortField: 'shTimeOnIcePerGame',       field: 'shTimeOnIcePerGame',   fmt: formatTOI },
-  // ADVANCED
-  { id: 'hits',        label: 'Hits',           tab: 'advanced', endpoint: 'skater/realtime',    sortField: 'hits',                     field: 'hits',                 fmt: v => v },
-  { id: 'blocks',      label: 'Blocked Shots',  tab: 'advanced', endpoint: 'skater/realtime',    sortField: 'blockedShots',             field: 'blockedShots',         fmt: v => v },
-  { id: 'takeaways',   label: 'Takeaways',      tab: 'advanced', endpoint: 'skater/realtime',    sortField: 'takeaways',                field: 'takeaways',            fmt: v => v },
-  { id: 'giveaways',   label: 'Fewest Giveaways', tab: 'advanced', endpoint: 'skater/realtime', sortField: 'giveaways',                field: 'giveaways',            fmt: v => v, ascending: true, minFilter: 'gamesPlayed>=5' },
-  { id: 'hitsPer60',   label: 'Hits / 60',      tab: 'advanced', endpoint: 'skater/realtime',    sortField: 'hitsPer60',                field: 'hitsPer60',            fmt: v => v?.toFixed(1), minFilter: 'gamesPlayed>=5' },
-  { id: 'blocksPer60', label: 'Blocks / 60',    tab: 'advanced', endpoint: 'skater/realtime',    sortField: 'blockedShotsPer60',        field: 'blockedShotsPer60',    fmt: v => v?.toFixed(1), minFilter: 'gamesPlayed>=5' },
-  // FACEOFFS
-  { id: 'foWins',      label: 'FO Wins',        tab: 'faceoffs', endpoint: 'skater/faceoffwins', sortField: 'totalFaceoffWins',         field: 'totalFaceoffWins',     fmt: v => v },
-  { id: 'foPct',       label: 'FO Win %',       tab: 'faceoffs', endpoint: 'skater/faceoffwins', sortField: 'faceoffWinPct',            field: 'faceoffWinPct',        fmt: v => `${(v * 100).toFixed(1)}%`, minFilter: 'totalFaceoffs>=20' },
-  { id: 'ozFO',        label: 'OZ FO Wins',     tab: 'faceoffs', endpoint: 'skater/faceoffwins', sortField: 'offensiveZoneFaceoffWins', field: 'offensiveZoneFaceoffWins', fmt: v => v },
-  { id: 'dzFO',        label: 'DZ FO Wins',     tab: 'faceoffs', endpoint: 'skater/faceoffwins', sortField: 'defensiveZoneFaceoffWins', field: 'defensiveZoneFaceoffWins', fmt: v => v },
-  // GOALIES
-  { id: 'gWins',       label: 'Wins',           tab: 'goalies',  endpoint: 'goalie/summary',     sortField: 'wins',                     field: 'wins',                 fmt: v => v, nameField: 'goalieFullName', minFilter: 'gamesPlayed>=3' },
-  { id: 'gGAA',        label: 'Goals Against Avg', tab: 'goalies', endpoint: 'goalie/summary',   sortField: 'goalsAgainstAverage',      field: 'goalsAgainstAverage',  fmt: v => v?.toFixed(2), nameField: 'goalieFullName', ascending: true, minFilter: 'gamesPlayed>=5' },
-  { id: 'gSvPct',      label: 'Save %',         tab: 'goalies',  endpoint: 'goalie/summary',     sortField: 'savePct',                  field: 'savePct',              fmt: v => v?.toFixed(3), nameField: 'goalieFullName', minFilter: 'gamesPlayed>=5' },
-  { id: 'gShutouts',   label: 'Shutouts',       tab: 'goalies',  endpoint: 'goalie/summary',     sortField: 'shutouts',                 field: 'shutouts',             fmt: v => v, nameField: 'goalieFullName', minFilter: 'gamesPlayed>=3' },
-  { id: 'gSaves',      label: 'Saves',          tab: 'goalies',  endpoint: 'goalie/summary',     sortField: 'saves',                    field: 'saves',                fmt: v => v, nameField: 'goalieFullName', minFilter: 'gamesPlayed>=3' },
+// ─── Section config ───────────────────────────────────────────────────────────
+const SECTIONS = [
+  {
+    id: 'skaters',
+    label: 'Skaters',
+    nameField: 'skaterFullName',
+    hasPosition: true,
+    tabs: [
+      { id: 'points',   label: 'Points',    statLabel: 'PTS',     endpoint: 'skater/summary',     sortField: 'points',               field: 'points',               fmt: v => v },
+      { id: 'goals',    label: 'Goals',     statLabel: 'G',       endpoint: 'skater/summary',     sortField: 'goals',                field: 'goals',                fmt: v => v },
+      { id: 'assists',  label: 'Assists',   statLabel: 'A',       endpoint: 'skater/summary',     sortField: 'assists',              field: 'assists',              fmt: v => v },
+      { id: 'plusMinus',label: '+/−',       statLabel: '+/−',     endpoint: 'skater/summary',     sortField: 'plusMinus',            field: 'plusMinus',            fmt: v => v > 0 ? `+${v}` : String(v) },
+      { id: 'hits',     label: 'Hits',      statLabel: 'HITS',    endpoint: 'skater/realtime',    sortField: 'hits',                 field: 'hits',                 fmt: v => v },
+      { id: 'blocks',   label: 'Blocks',    statLabel: 'BLK',     endpoint: 'skater/realtime',    sortField: 'blockedShots',         field: 'blockedShots',         fmt: v => v },
+      { id: 'ppPoints', label: 'PP Points', statLabel: 'PP PTS',  endpoint: 'skater/powerplay',   sortField: 'ppPoints',             field: 'ppPoints',             fmt: v => v },
+      { id: 'foPct',    label: 'FO%',       statLabel: 'FO WIN%', endpoint: 'skater/faceoffwins', sortField: 'faceoffWinPct',        field: 'faceoffWinPct',        fmt: v => `${(v * 100).toFixed(1)}%`, minFilter: 'totalFaceoffs>=20' },
+    ],
+  },
+  {
+    id: 'goalies',
+    label: 'Goalies',
+    nameField: 'goalieFullName',
+    hasPosition: false,
+    tabs: [
+      { id: 'wins',     label: 'Wins',      statLabel: 'W',       endpoint: 'goalie/summary',     sortField: 'wins',                 field: 'wins',                 fmt: v => v,              minFilter: 'gamesPlayed>=3' },
+      { id: 'gaa',      label: 'GAA',       statLabel: 'GAA',     endpoint: 'goalie/summary',     sortField: 'goalsAgainstAverage',  field: 'goalsAgainstAverage',  fmt: v => v?.toFixed(2), ascending: true, minFilter: 'gamesPlayed>=5' },
+      { id: 'svPct',    label: 'SV%',       statLabel: 'SV%',     endpoint: 'goalie/summary',     sortField: 'savePct',              field: 'savePct',              fmt: v => v?.toFixed(3), minFilter: 'gamesPlayed>=5' },
+      { id: 'shutouts', label: 'Shutouts',  statLabel: 'SO',      endpoint: 'goalie/summary',     sortField: 'shutouts',             field: 'shutouts',             fmt: v => v,              minFilter: 'gamesPlayed>=3' },
+    ],
+  },
 ]
 
-const TABS = [
-  { id: 'scoring',  label: 'Scoring' },
-  { id: 'special',  label: 'Special Teams' },
-  { id: 'advanced', label: 'Advanced' },
-  { id: 'faceoffs', label: 'Faceoffs' },
-  { id: 'goalies',  label: 'Goalies' },
-]
+const RANK_COLORS = { 1: '#C8102E', 2: '#9A9AA8', 3: '#B87333' }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-function initials(fullName) {
-  if (!fullName) return ''
-  const parts = fullName.trim().split(' ')
-  return parts.length >= 2 ? `${parts[0][0]}. ${parts.slice(1).join(' ')}` : fullName
+// ─── Full list drawer ─────────────────────────────────────────────────────────
+function FullListDrawer({ tab, nameField, pos, onPlayerClick, onClose }) {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const key = `all|${tab?.id}|${pos}`
+  const cacheRef = useRef({})
+
+  useEffect(() => {
+    if (!tab) return
+    if (cacheRef.current[key]) { setData(cacheRef.current[key]); setLoading(false); return }
+    setLoading(true)
+    fetchStats({ ...tab, limit: 100, pos })
+      .then(rows => { cacheRef.current[key] = rows; setData(rows); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [tab?.id, pos])
+
+  const maxVal = Math.max(...data.map(r => Math.abs(r[tab?.field] || 0)), 1)
+
+  return (
+    <div style={s.drawerOverlay} onClick={onClose}>
+      <div style={s.drawer} onClick={e => e.stopPropagation()}>
+        <div style={s.drawerHead}>
+          <span style={s.drawerTitle}>{tab?.label} Leaders</span>
+          <button style={s.closeBtn} onClick={onClose}>✕</button>
+        </div>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" /></div>
+        ) : (
+          <div style={s.drawerBody}>
+            {data.map((p, i) => {
+              const rankColor = RANK_COLORS[i + 1]
+              const val = tab?.fmt ? tab.fmt(p[tab.field]) : p[tab?.field]
+              const pct = Math.abs(p[tab?.field] || 0) / maxVal
+              return (
+                <div
+                  key={p.playerId}
+                  style={s.drawerRow}
+                  onClick={() => { onPlayerClick(p.playerId); onClose() }}
+                >
+                  <span style={{ ...s.rankNum, color: rankColor || '#3E5068', minWidth: 24 }}>{i + 1}</span>
+                  <img
+                    src={playerHeadshot(p.playerId, p.teamAbbrevs)}
+                    alt=""
+                    style={s.mugshot}
+                    onError={e => { e.target.style.display = 'none' }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#E8EEF4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p[nameField]}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#4B6072', letterSpacing: 0.8, textTransform: 'uppercase' }}>{p.teamAbbrevs?.split(',')[0]}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 16, color: '#E8EEF4' }}>{val}</span>
+                    <div style={s.barTrackSm}>
+                      <div style={{ ...s.bar, width: `${Math.max(pct * 100, 2)}%` }} />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
-// ─── Radar chart for comparison ─────────────────────────────────────────────
+// ─── Section block ────────────────────────────────────────────────────────────
+function SectionBlock({ section, globalPos, onPlayerClick, onViewAll }) {
+  const [activeTabId, setActiveTabId] = useState(section.tabs[0].id)
+  const [pos, setPos] = useState('all')
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [featuredIdx, setFeaturedIdx] = useState(0)
+  const cache = useRef({})
+
+  const activeTab = section.tabs.find(t => t.id === activeTabId)
+  const effectivePos = section.hasPosition ? pos : 'all'
+  const cacheKey = `${activeTabId}|${effectivePos}`
+
+  useEffect(() => {
+    if (cache.current[cacheKey]) {
+      setData(cache.current[cacheKey]); setLoading(false); setFeaturedIdx(0); return
+    }
+    setLoading(true)
+    fetchStats({ ...activeTab, limit: 10, pos: effectivePos })
+      .then(rows => { cache.current[cacheKey] = rows; setData(rows); setLoading(false); setFeaturedIdx(0) })
+      .catch(() => setLoading(false))
+  }, [cacheKey])
+
+  const featured = data[featuredIdx]
+  const nameField = section.nameField
+
+  return (
+    <div style={s.section}>
+      {/* Section header row */}
+      <div style={s.sectionHeader}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', flex: 1 }}>
+          <span style={s.sectionLabel}>{section.label}</span>
+          <div style={s.subTabBar}>
+            {section.tabs.map(t => (
+              <button
+                key={t.id}
+                style={{ ...s.subTab, ...(activeTabId === t.id ? s.subTabActive : {}) }}
+                onClick={() => setActiveTabId(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {section.hasPosition && (
+          <div style={s.posFilter}>
+            {[['all', 'All'], ['F', 'Forwards'], ['D', 'Defense']].map(([val, label]) => (
+              <button
+                key={val}
+                style={{ ...s.posBtn, ...(pos === val ? s.posBtnActive : {}) }}
+                onClick={() => setPos(val)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div style={s.sectionBody}>
+        {/* Left: featured player */}
+        <div
+          style={s.featuredPanel}
+          onClick={() => featured && onPlayerClick(featured.playerId)}
+        >
+          {loading ? (
+            <div style={{ width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} className="skeleton" />
+          ) : featured ? (
+            <>
+              <img
+                src={playerHeadshot(featured.playerId, featured.teamAbbrevs)}
+                alt=""
+                style={s.featuredShot}
+                onError={e => { e.target.style.opacity = 0.2 }}
+              />
+              <div style={s.featuredRank}>#{featuredIdx + 1}</div>
+              <div style={s.featuredName}>{featured[nameField]}</div>
+              <div style={s.featuredTeam}>{featured.teamAbbrevs?.split(',')[0]}</div>
+              <div style={s.featuredStatLabel}>{activeTab.statLabel}</div>
+              <div style={s.featuredStatVal}>{activeTab.fmt(featured[activeTab.field])}</div>
+            </>
+          ) : null}
+        </div>
+
+        {/* Right: ranked list */}
+        <div style={s.rankedList}>
+          {loading ? (
+            Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} style={{ padding: '11px 20px', display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div className="skeleton" style={{ width: 20, height: 14, borderRadius: 2 }} />
+                <div className="skeleton skeleton-text" style={{ width: '55%' }} />
+                <div className="skeleton" style={{ width: 36, height: 20, borderRadius: 4, marginLeft: 'auto' }} />
+              </div>
+            ))
+          ) : (
+            data.map((p, i) => {
+              const isActive = i === featuredIdx
+              const rankColor = RANK_COLORS[i + 1]
+              return (
+                <div
+                  key={p.playerId}
+                  style={{
+                    ...s.rankedRow,
+                    ...(isActive ? s.rankedRowActive : {}),
+                  }}
+                  onMouseEnter={() => setFeaturedIdx(i)}
+                  onClick={() => onPlayerClick(p.playerId)}
+                >
+                  <span style={{ ...s.rankNum, color: rankColor || '#3E5068' }}>{i + 1}</span>
+                  <img
+                    src={playerHeadshot(p.playerId, p.teamAbbrevs)}
+                    alt=""
+                    style={s.rowShot}
+                    onError={e => { e.target.style.visibility = 'hidden' }}
+                  />
+                  <div style={s.rankedMeta}>
+                    <span style={s.rankedName}>{p[nameField]}</span>
+                    <span style={s.rankedTeam}>{p.teamAbbrevs?.split(',')[0]}</span>
+                  </div>
+                  <span style={s.rankedVal}>{activeTab.fmt(p[activeTab.field])}</span>
+                </div>
+              )
+            })
+          )}
+          <button
+            style={s.allLeadersBtn}
+            onClick={() => onViewAll({ tab: activeTab, nameField: section.nameField, pos: effectivePos })}
+          >
+            All Leaders →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Radar chart ──────────────────────────────────────────────────────────────
 function RadarChart({ axes }) {
-  // axes: [{ label, valA, valB, max }]
   const N = axes.length
   const cx = 140, cy = 140, r = 100
 
@@ -113,7 +297,6 @@ function RadarChart({ axes }) {
 
   const polyA = axes.map((a, i) => { const p = pt(i, a.valA, a.max); return `${p.x},${p.y}` }).join(' ')
   const polyB = axes.map((a, i) => { const p = pt(i, a.valB, a.max); return `${p.x},${p.y}` }).join(' ')
-  const outerRing = axes.map((_, i) => { const p = pt(i, 1, 1); return `${p.x},${p.y}` }).join(' ')
 
   return (
     <svg width="280" height="280" viewBox="0 0 280 280" style={{ display: 'block', margin: '0 auto' }}>
@@ -138,184 +321,18 @@ function RadarChart({ axes }) {
   )
 }
 
-// ─── Single leader row with bar ──────────────────────────────────────────────
-const RANK_COLORS = { 1: '#C8102E', 2: '#A8A8B0', 3: '#B87333' }
-
-function LeaderRow({ rank, fullName, team, playerId, value, pct, onClick }) {
-  const isTop = rank === 1
-  const shot = playerHeadshot(playerId, team)
-  const rankColor = RANK_COLORS[rank]
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div
-      style={{
-        ...s.leaderRow,
-        ...(isTop ? s.leaderRowTop : {}),
-        ...(hovered && !isTop ? { background: 'rgba(255,255,255,0.03)', borderLeft: '2px solid rgba(200,16,46,0.4)' } : {}),
-      }}
-      onClick={() => onClick(playerId)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <span style={{
-        ...s.rank,
-        ...(rankColor ? { color: rankColor, fontSize: isTop ? 10 : 11 } : {}),
-      }}>{rank}</span>
-
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <img
-          src={shot}
-          alt=""
-          style={{
-            ...s.headshot,
-            ...(isTop ? s.headshotTop : {}),
-            ...(rank === 2 ? { border: '1.5px solid rgba(168,168,176,0.5)' } : {}),
-            ...(rank === 3 ? { border: '1.5px solid rgba(184,115,51,0.5)' } : {}),
-          }}
-          onError={e => { e.target.style.visibility = 'hidden' }}
-        />
-      </div>
-
-      <div style={s.playerMeta}>
-        <div style={{ ...s.playerName, ...(isTop ? s.playerNameTop : {}) }}>
-          {isTop ? fullName : initials(fullName)}
-        </div>
-        <div style={s.teamPill}>{team}</div>
-      </div>
-
-      <div style={s.rightBlock}>
-        <span style={{ ...s.statNum, ...(isTop ? s.statNumTop : {}) }}>{value}</span>
-        <div style={s.barTrack}>
-          <div style={{ ...s.bar, width: `${Math.max(pct * 100, 3)}%`, opacity: isTop ? 1 : 0.7 }} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Leader card (top 10 + see all) ─────────────────────────────────────────
-function LeaderCard({ cat, pos, onViewAll, onPlayerClick, cache }) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const nameF = cat.nameField || 'skaterFullName'
-  const key = `${cat.id}|${pos}`
-
-  useEffect(() => {
-    if (cache.current[key]) { setData(cache.current[key]); setLoading(false); return }
-    setLoading(true)
-    fetchStats({ ...cat, limit: 10, pos: cat.tab === 'goalies' ? 'all' : pos })
-      .then(rows => { cache.current[key] = rows; setData(rows); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [key])
-
-  const vals = data.map(r => Math.abs(r[cat.field] || 0))
-  const maxVal = Math.max(...vals, 1)
-
-  return (
-    <div className="card" style={s.leaderCard}>
-      <div style={s.cardHead}>
-        <div style={s.cardAccent} />
-        <span style={s.catLabel}>{cat.label}</span>
-        <button style={s.viewAllBtn} onClick={() => onViewAll(cat)}>See all →</button>
-      </div>
-      {loading ? (
-        <div style={{ padding: '32px 0', textAlign: 'center' }}><span className="spinner" /></div>
-      ) : data.length === 0 ? (
-        <div style={{ color: '#9CAAB8', fontSize: 13, padding: '16px 0' }}>No data yet.</div>
-      ) : (
-        <div>
-          {data.map((p, i) => (
-            <LeaderRow
-              key={p.playerId}
-              rank={i + 1}
-              fullName={p[nameF] || ''}
-              team={p.teamAbbrevs?.split(',')[0] || ''}
-              playerId={p.playerId}
-              value={cat.fmt ? cat.fmt(p[cat.field]) : p[cat.field]}
-              pct={Math.abs(p[cat.field] || 0) / maxVal}
-              onClick={onPlayerClick}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Full list drawer ────────────────────────────────────────────────────────
-function FullListDrawer({ cat, pos, onPlayerClick, onClose, cache }) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const nameF = cat?.nameField || 'skaterFullName'
-  const key = `all|${cat?.id}|${pos}`
-
-  useEffect(() => {
-    if (!cat) return
-    if (cache.current[key]) { setData(cache.current[key]); setLoading(false); return }
-    setLoading(true)
-    fetchStats({ ...cat, limit: 100, pos: cat.tab === 'goalies' ? 'all' : pos })
-      .then(rows => { cache.current[key] = rows; setData(rows); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [cat?.id, pos])
-
-  const maxVal = Math.max(...data.map(r => Math.abs(r[cat?.field] || 0)), 1)
-
-  return (
-    <div style={s.drawerOverlay} onClick={onClose}>
-      <div style={s.drawer} onClick={e => e.stopPropagation()}>
-        <div style={s.drawerHead}>
-          <span style={s.drawerTitle}>{cat?.label}</span>
-          <button style={s.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        {loading ? (
-          <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" /></div>
-        ) : (
-          <div style={s.drawerBody}>
-            {data.map((p, i) => (
-              <div key={p.playerId} style={s.drawerRow} onClick={() => { onPlayerClick(p.playerId); onClose() }}>
-                <span style={{ ...s.rank, minWidth: 28 }}>{i + 1}</span>
-                <img
-                  src={playerHeadshot(p.playerId, p.teamAbbrevs)}
-                  alt=""
-                  style={s.mugshot}
-                  onError={e => { e.target.style.display = 'none' }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#E8EEF4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {p[nameF]}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9CAAB8' }}>
-                    {p.teamAbbrevs?.split(',')[0]} · {p.positionCode || ''}
-                  </div>
-                </div>
-                <div style={s.barTrackSm}>
-                  <div style={{ ...s.bar, width: `${Math.max((Math.abs(p[cat?.field] || 0) / maxVal) * 100, 2)}%` }} />
-                </div>
-                <span style={{ ...s.statNum, minWidth: 42, textAlign: 'right', fontSize: 14 }}>
-                  {cat?.fmt ? cat.fmt(p[cat.field]) : p[cat?.field]}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Comparison section ──────────────────────────────────────────────────────
+// ─── Compare section ──────────────────────────────────────────────────────────
 const COMPARE_AXES = [
-  { label: 'Goals',    fieldA: 'goals',           fieldB: 'goals',           max: 60 },
-  { label: 'Assists',  fieldA: 'assists',          fieldB: 'assists',         max: 90 },
-  { label: 'Points',   fieldA: 'points',           fieldB: 'points',          max: 130 },
-  { label: '+/-',      fieldA: 'plusMinus',        fieldB: 'plusMinus',       max: 50, shift: 25 },
-  { label: 'TOI/G',    fieldA: 'avgToi',           fieldB: 'avgToi',          max: 1500 },
-  { label: 'GP',       fieldA: 'gamesPlayed',      fieldB: 'gamesPlayed',     max: 82 },
+  { label: 'Goals',   fieldA: 'goals',      fieldB: 'goals',      max: 60 },
+  { label: 'Assists', fieldA: 'assists',     fieldB: 'assists',    max: 90 },
+  { label: 'Points',  fieldA: 'points',      fieldB: 'points',     max: 130 },
+  { label: '+/-',     fieldA: 'plusMinus',   fieldB: 'plusMinus',  max: 50, shift: 25 },
+  { label: 'TOI/G',   fieldA: 'avgToi',      fieldB: 'avgToi',     max: 1500 },
+  { label: 'GP',      fieldA: 'gamesPlayed', fieldB: 'gamesPlayed', max: 82 },
 ]
 
 function extractStats(landing) {
   const sub = landing?.featuredStats?.regularSeason?.subSeason
-  const bio = landing?.featuredStats?.regularSeason?.career
   if (!sub) return null
   return {
     goals: sub.goals || 0,
@@ -423,7 +440,7 @@ function CompareSection({ onPlayerClick }) {
   ]
 
   return (
-    <div style={{ marginTop: 48 }}>
+    <div style={{ marginTop: 56 }}>
       <div className="section-label">Compare Players</div>
       <div style={s.compareGrid}>
         <PlayerPicker
@@ -458,7 +475,6 @@ function CompareSection({ onPlayerClick }) {
               <span style={{ color: '#D4A800', fontWeight: 700 }}>■ {playerB.name}</span>
             </div>
           </div>
-
           <div style={s.statTable}>
             <div style={s.statTableHead}>
               <span />
@@ -493,116 +509,159 @@ function CompareSection({ onPlayerClick }) {
   )
 }
 
-// ─── Main page ───────────────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function StatsPage() {
-  const [activeTab, setActiveTab] = useState('scoring')
-  const [pos, setPos] = useState('all')
-  const [drawer, setDrawer] = useState(null)
+  const [drawer, setDrawer] = useState(null) // { tab, nameField, pos }
   const [playerCard, setPlayerCard] = useState(null)
-  const cache = useRef({})
-
-  const tabCats = CATEGORIES.filter(c => c.tab === activeTab)
 
   return (
     <div className="page-wrap fade-up">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-        <div className="section-label" style={{ margin: 0 }}>Stats Leaders</div>
-        {activeTab !== 'goalies' && (
-          <div style={s.posFilter}>
-            {['all', 'F', 'D'].map(p => (
-              <button key={p} style={{ ...s.posBtn, ...(pos === p ? s.posBtnActive : {}) }} onClick={() => setPos(p)}>
-                {p === 'all' ? 'All Skaters' : p === 'F' ? 'Forwards' : 'Defense'}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <div className="section-label" style={{ marginBottom: 32 }}>Stats Leaders</div>
 
-      <div style={s.tabs}>
-        {TABS.map(t => (
-          <button key={t.id} style={{ ...s.tab, ...(activeTab === t.id ? s.tabActive : {}) }} onClick={() => setActiveTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={s.grid}>
-        {tabCats.map(cat => (
-          <LeaderCard
-            key={`${cat.id}|${pos}`}
-            cat={cat}
-            pos={pos}
-            onViewAll={setDrawer}
-            onPlayerClick={setPlayerCard}
-            cache={cache}
-          />
-        ))}
-      </div>
+      {SECTIONS.map(section => (
+        <SectionBlock
+          key={section.id}
+          section={section}
+          onPlayerClick={setPlayerCard}
+          onViewAll={setDrawer}
+        />
+      ))}
 
       <CompareSection onPlayerClick={setPlayerCard} />
 
       {drawer && (
         <FullListDrawer
-          cat={drawer}
-          pos={pos}
+          tab={drawer.tab}
+          nameField={drawer.nameField}
+          pos={drawer.pos}
           onPlayerClick={setPlayerCard}
           onClose={() => setDrawer(null)}
-          cache={cache}
         />
       )}
 
-      {playerCard && (
-        <PlayerCard playerId={playerCard} onClose={() => setPlayerCard(null)} />
-      )}
+      {playerCard && <PlayerCard playerId={playerCard} onClose={() => setPlayerCard(null)} />}
     </div>
   )
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = {
-  // Nav tabs
-  tabs: { display: 'flex', gap: 4, marginBottom: 24, flexWrap: 'wrap' },
-  tab: { padding: '9px 18px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#5B6A7A', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 1, textTransform: 'uppercase', transition: 'all 0.15s' },
-  tabActive: { background: 'var(--red)', color: '#fff', border: '1px solid var(--red)', fontWeight: 700 },
+  // Section layout
+  section: { marginBottom: 48 },
 
-  // Position filter
+  sectionHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 16, flexWrap: 'wrap', marginBottom: 0,
+  },
+  sectionLabel: {
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22,
+    letterSpacing: 0.3, color: '#E8EEF4', flexShrink: 0,
+  },
+
+  subTabBar: {
+    display: 'flex', gap: 0,
+    borderBottom: '2px solid rgba(255,255,255,0.08)',
+  },
+  subTab: {
+    padding: '9px 16px', fontSize: 13, fontWeight: 600, background: 'none', border: 'none',
+    borderBottom: '2px solid transparent', color: '#5B6A7A', cursor: 'pointer',
+    fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5, textTransform: 'uppercase',
+    transition: 'color 0.15s, border-color 0.15s', marginBottom: -2, whiteSpace: 'nowrap',
+  },
+  subTabActive: { borderBottom: '2px solid #C8102E', color: '#E8EEF4', fontWeight: 800 },
+
   posFilter: { display: 'flex', gap: 4 },
-  posBtn: { padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#5B6A7A', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5 },
-  posBtnActive: { background: 'rgba(200,16,46,0.12)', border: '1px solid rgba(200,16,46,0.5)', color: 'var(--red)', fontWeight: 700 },
+  posBtn: {
+    padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+    border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#5B6A7A',
+    cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  posBtnActive: { background: 'rgba(200,16,46,0.12)', border: '1px solid rgba(200,16,46,0.5)', color: '#C8102E', fontWeight: 700 },
 
-  // Card grid
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
+  sectionBody: {
+    display: 'flex', background: 'var(--surface)', borderRadius: '0 12px 12px 12px',
+    border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+  },
 
-  // Leader card
-  leaderCard: { padding: '0 0 4px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' },
-  cardHead: { display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' },
-  cardAccent: { width: 3, height: 16, borderRadius: 2, background: 'var(--red)', flexShrink: 0 },
-  catLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 14, letterSpacing: 1.5, textTransform: 'uppercase', color: '#C8D0D9', flex: 1 },
-  viewAllBtn: { background: 'rgba(200,16,46,0.1)', border: '1px solid rgba(200,16,46,0.3)', color: '#C8102E', fontSize: 10, cursor: 'pointer', fontWeight: 800, padding: '4px 10px', borderRadius: 20, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.8, textTransform: 'uppercase' },
+  // Featured player panel (left)
+  featuredPanel: {
+    width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', padding: '32px 20px 24px',
+    background: 'rgba(0,0,0,0.15)', borderRight: '1px solid rgba(255,255,255,0.07)',
+    textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s',
+    minHeight: 300,
+  },
+  featuredShot: {
+    width: 96, height: 96, borderRadius: '50%', objectFit: 'cover',
+    border: '3px solid rgba(200,16,46,0.5)', marginBottom: 12,
+    boxShadow: '0 0 24px rgba(200,16,46,0.2)',
+  },
+  featuredRank: {
+    fontSize: 10, fontWeight: 800, color: '#C8102E', letterSpacing: 1.5,
+    fontFamily: "'Barlow Condensed', sans-serif", textTransform: 'uppercase', marginBottom: 4,
+  },
+  featuredName: {
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 17,
+    color: '#E8EEF4', lineHeight: 1.1, marginBottom: 4,
+  },
+  featuredTeam: {
+    fontSize: 10, fontWeight: 700, color: '#4B6072', letterSpacing: 1,
+    textTransform: 'uppercase', marginBottom: 20,
+  },
+  featuredStatLabel: {
+    fontSize: 9, fontWeight: 800, color: '#5B6A7A', letterSpacing: 2,
+    textTransform: 'uppercase', fontFamily: "'Barlow Condensed', sans-serif", marginBottom: 4,
+  },
+  featuredStatVal: {
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 56,
+    color: '#fff', lineHeight: 1,
+  },
 
-  // Leader rows
-  leaderRow: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px 5px', cursor: 'pointer', transition: 'background 0.12s, border-left 0.12s', borderLeft: '2px solid transparent' },
-  leaderRowTop: { padding: '10px 14px 8px', background: 'rgba(200,16,46,0.04)', borderBottom: '1px solid rgba(200,16,46,0.08)' },
+  // Ranked list (right)
+  rankedList: { flex: 1, padding: '4px 0 8px' },
 
-  rank: { fontSize: 10, color: '#3E5068', fontWeight: 700, minWidth: 14, textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif" },
+  rankedRow: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px',
+    cursor: 'pointer', transition: 'background 0.1s',
+    borderLeft: '3px solid transparent',
+  },
+  rankedRowActive: {
+    background: 'rgba(200,16,46,0.05)',
+    borderLeft: '3px solid rgba(200,16,46,0.6)',
+  },
 
-  headshot: { width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(255,255,255,0.08)', flexShrink: 0 },
-  headshotTop: { width: 38, height: 38, border: '2px solid rgba(200,16,46,0.4)' },
+  rankNum: {
+    fontSize: 11, fontWeight: 800, minWidth: 20, textAlign: 'center',
+    fontFamily: "'Barlow Condensed', sans-serif", flexShrink: 0,
+  },
+  rowShot: {
+    width: 32, height: 32, borderRadius: '50%', objectFit: 'cover',
+    background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(255,255,255,0.08)',
+    flexShrink: 0,
+  },
+  rankedMeta: { flex: 1, minWidth: 0 },
+  rankedName: {
+    display: 'block', fontSize: 13, fontWeight: 600, color: '#C8D0D9',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2,
+  },
+  rankedTeam: {
+    fontSize: 9, fontWeight: 700, color: '#4B6072', letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  rankedVal: {
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20,
+    color: '#E8EEF4', minWidth: 52, textAlign: 'right', flexShrink: 0,
+  },
 
-  playerMeta: { flex: 1, minWidth: 0 },
-  playerName: { fontSize: 12, fontWeight: 600, color: '#C8D0D9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2 },
-  playerNameTop: { fontSize: 14, fontWeight: 700, color: '#E8EEF4' },
+  allLeadersBtn: {
+    background: 'none', border: 'none', color: '#C8102E', fontSize: 12, cursor: 'pointer',
+    fontWeight: 800, padding: '8px 20px', fontFamily: "'Barlow Condensed', sans-serif",
+    letterSpacing: 0.5, textTransform: 'uppercase', display: 'block',
+  },
 
-  teamPill: { fontSize: 9, fontWeight: 700, color: '#4B6072', letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 1 },
-
-  rightBlock: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, minWidth: 48 },
-  statNum: { fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 17, color: '#E8EEF4', lineHeight: 1 },
-  statNumTop: { fontSize: 26, color: '#fff' },
-
-  barTrack: { width: 48, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
-  bar: { height: '100%', background: 'linear-gradient(90deg, #C8102E, #FF3355)', borderRadius: 2, transition: 'width 0.5s ease' },
-
-  // Full list drawer
+  // Drawer
   drawerOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 300, display: 'flex', justifyContent: 'flex-end' },
   drawer: { background: 'var(--surface)', width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.5)' },
   drawerHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 16px', borderBottom: '1px solid var(--border)' },
@@ -612,18 +671,19 @@ const s = {
   drawerRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 6px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.12s', borderRadius: 6 },
   mugshot: { width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', background: 'rgba(255,255,255,0.05)', flexShrink: 0 },
   barTrackSm: { width: 56, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 },
+  bar: { height: '100%', background: 'linear-gradient(90deg, #C8102E, #FF3355)', borderRadius: 2, transition: 'width 0.5s ease' },
 
-  // Compare section
+  // Compare
   compareGrid: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'start', marginTop: 16 },
   vsLabel: { fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, color: '#3E5068', paddingTop: 32, letterSpacing: 2 },
   compareResults: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 24, alignItems: 'start' },
   radarWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 },
   radarLegend: { display: 'flex', gap: 16, fontSize: 12, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5 },
-
   statTable: { background: 'rgba(255,255,255,0.025)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(255,255,255,0.08)' },
   statTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 80px', gap: 8, padding: '4px 0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12 },
   statRow: { display: 'grid', gridTemplateColumns: '1fr 80px 80px', gap: 8, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13 },
 
+  // Picker
   pickerWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
   pickerLabel: { fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: '#3E5068', fontFamily: "'Barlow Condensed', sans-serif" },
   pickerSelected: { display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', position: 'relative' },
