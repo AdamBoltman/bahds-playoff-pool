@@ -547,75 +547,80 @@ export default function StatsPage() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = {
   // Section layout
-  section: { marginBottom: 48 },
+  section: { marginBottom: 32 },
 
   sectionHeader: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    gap: 16, flexWrap: 'wrap', marginBottom: 0,
+    gap: 16, flexWrap: 'wrap',
+    background: 'var(--surface)',
+    borderRadius: '12px 12px 0 0',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderBottom: 'none',
+    padding: '14px 16px 0',
   },
   sectionLabel: {
-    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22,
-    letterSpacing: 0.3, color: '#E8EEF4', flexShrink: 0,
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20,
+    letterSpacing: 0.3, color: '#E8EEF4', flexShrink: 0, paddingBottom: 14,
   },
 
-  subTabBar: {
-    display: 'flex', gap: 0,
-    borderBottom: '2px solid rgba(255,255,255,0.08)',
-  },
+  subTabBar: { display: 'flex', gap: 0 },
   subTab: {
-    padding: '9px 16px', fontSize: 13, fontWeight: 600, background: 'none', border: 'none',
-    borderBottom: '2px solid transparent', color: '#5B6A7A', cursor: 'pointer',
-    fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5, textTransform: 'uppercase',
-    transition: 'color 0.15s, border-color 0.15s', marginBottom: -2, whiteSpace: 'nowrap',
+    padding: '10px 14px', fontSize: 12, fontWeight: 600, background: 'none', border: 'none',
+    borderBottom: '2px solid transparent', color: '#4B6072', cursor: 'pointer',
+    fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.6, textTransform: 'uppercase',
+    transition: 'color 0.15s, border-color 0.15s', marginBottom: -1, whiteSpace: 'nowrap',
   },
-  subTabActive: { borderBottom: '2px solid #C8102E', color: '#E8EEF4', fontWeight: 800 },
+  subTabActive: { borderBottom: '2px solid #C8102E', color: '#D0D8E4', fontWeight: 800 },
 
-  posFilter: { display: 'flex', gap: 4 },
+  posFilter: { display: 'flex', gap: 3, paddingBottom: 10 },
   posBtn: {
-    padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-    border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#5B6A7A',
+    padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+    border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#4B6072',
     cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  posBtnActive: { background: 'rgba(200,16,46,0.12)', border: '1px solid rgba(200,16,46,0.5)', color: '#C8102E', fontWeight: 700 },
+  posBtnActive: { background: 'rgba(200,16,46,0.1)', border: '1px solid rgba(200,16,46,0.3)', color: '#C8102E', fontWeight: 700 },
 
   sectionBody: {
-    display: 'flex', background: 'var(--surface)', borderRadius: '0 12px 12px 12px',
-    border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+    display: 'flex', background: 'var(--surface)',
+    borderRadius: '0 0 12px 12px',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderTop: '1px solid rgba(255,255,255,0.05)',
+    overflow: 'hidden',
   },
 
   // Featured player panel (left)
   featuredPanel: {
-    width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', padding: '32px 20px 24px',
-    background: 'rgba(0,0,0,0.15)', borderRight: '1px solid rgba(255,255,255,0.07)',
-    textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s',
-    minHeight: 300,
+    width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', padding: '28px 16px 20px',
+    background: 'transparent',
+    borderRight: '1px solid rgba(255,255,255,0.05)',
+    textAlign: 'center', cursor: 'pointer',
+    minHeight: 280,
   },
   featuredShot: {
-    width: 96, height: 96, borderRadius: '50%', objectFit: 'cover',
-    border: '3px solid rgba(200,16,46,0.5)', marginBottom: 12,
-    boxShadow: '0 0 24px rgba(200,16,46,0.2)',
+    width: 88, height: 88, borderRadius: '50%', objectFit: 'cover',
+    border: '2px solid rgba(200,16,46,0.4)', marginBottom: 10,
+    boxShadow: '0 0 20px rgba(200,16,46,0.15)',
   },
   featuredRank: {
-    fontSize: 10, fontWeight: 800, color: '#C8102E', letterSpacing: 1.5,
-    fontFamily: "'Barlow Condensed', sans-serif", textTransform: 'uppercase', marginBottom: 4,
+    fontSize: 9, fontWeight: 800, color: '#C8102E', letterSpacing: 1.5,
+    fontFamily: "'Barlow Condensed', sans-serif", textTransform: 'uppercase', marginBottom: 3,
   },
   featuredName: {
-    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 17,
-    color: '#E8EEF4', lineHeight: 1.1, marginBottom: 4,
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 15,
+    color: '#D8E0EA', lineHeight: 1.15, marginBottom: 2,
   },
   featuredTeam: {
-    fontSize: 10, fontWeight: 700, color: '#4B6072', letterSpacing: 1,
-    textTransform: 'uppercase', marginBottom: 20,
+    fontSize: 9, fontWeight: 700, color: '#3E5068', letterSpacing: 1,
+    textTransform: 'uppercase', marginBottom: 16,
   },
   featuredStatLabel: {
-    fontSize: 9, fontWeight: 800, color: '#5B6A7A', letterSpacing: 2,
-    textTransform: 'uppercase', fontFamily: "'Barlow Condensed', sans-serif", marginBottom: 4,
+    fontSize: 9, fontWeight: 800, color: '#4B6072', letterSpacing: 2,
+    textTransform: 'uppercase', fontFamily: "'Barlow Condensed', sans-serif", marginBottom: 2,
   },
   featuredStatVal: {
-    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 56,
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 48,
     color: '#fff', lineHeight: 1,
   },
 
@@ -623,36 +628,36 @@ const s = {
   rankedList: { flex: 1, padding: '4px 0 8px' },
 
   rankedRow: {
-    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px',
+    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 16px',
     cursor: 'pointer', transition: 'background 0.1s',
-    borderLeft: '3px solid transparent',
+    borderLeft: '2px solid transparent',
   },
   rankedRowActive: {
-    background: 'rgba(200,16,46,0.05)',
-    borderLeft: '3px solid rgba(200,16,46,0.6)',
+    background: 'rgba(200,16,46,0.04)',
+    borderLeft: '2px solid rgba(200,16,46,0.5)',
   },
 
   rankNum: {
-    fontSize: 11, fontWeight: 800, minWidth: 20, textAlign: 'center',
+    fontSize: 10, fontWeight: 800, minWidth: 18, textAlign: 'center',
     fontFamily: "'Barlow Condensed', sans-serif", flexShrink: 0,
   },
   rowShot: {
-    width: 32, height: 32, borderRadius: '50%', objectFit: 'cover',
-    background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(255,255,255,0.08)',
+    width: 28, height: 28, borderRadius: '50%', objectFit: 'cover',
+    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
     flexShrink: 0,
   },
   rankedMeta: { flex: 1, minWidth: 0 },
   rankedName: {
-    display: 'block', fontSize: 13, fontWeight: 600, color: '#C8D0D9',
+    display: 'block', fontSize: 13, fontWeight: 600, color: '#B8C4D0',
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2,
   },
   rankedTeam: {
-    fontSize: 9, fontWeight: 700, color: '#4B6072', letterSpacing: 0.8,
+    fontSize: 9, fontWeight: 700, color: '#3E5068', letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   rankedVal: {
-    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20,
-    color: '#E8EEF4', minWidth: 52, textAlign: 'right', flexShrink: 0,
+    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 18,
+    color: '#E8EEF4', minWidth: 46, textAlign: 'right', flexShrink: 0,
   },
 
   allLeadersBtn: {

@@ -144,7 +144,13 @@ export default function PlayerCard({ playerId, onClose }) {
                       <StatBox label="+/-" value={plusMinusStr} signed />
                     </div>
                     <div style={{ ...s.statGrid, marginTop: 6 }}>
-                      <StatBox label="TOI/G" value={formatTOI(season?.avgToi)} />
+                      <StatBox label="TOI/G" value={
+                        season?.avgToi
+                          ? formatTOI(season.avgToi)
+                          : (season?.timeOnIce && season?.gamesPlayed)
+                            ? formatTOI(Math.round(season.timeOnIce / season.gamesPlayed))
+                            : '—'
+                      } />
                       <StatBox label="Shots" value={season?.shots ?? '—'} />
                       <StatBox label="SH%" value={shootingPct} />
                       <StatBox label="PP Goals" value={season?.powerPlayGoals ?? '—'} />
